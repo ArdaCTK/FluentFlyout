@@ -384,10 +384,22 @@ public partial class UserSettings : ObservableObject
     public partial string LyricsTextColor { get; set; }
 
     /// <summary>
-    /// Animation mode for line changes. 0 = Fade, 1 = Slide.
+    /// Animation mode for line changes. 0 = Fade, 1 = Slide, 2 = Marquee Sync.
     /// </summary>
     [ObservableProperty]
     public partial int LyricsAnimationMode { get; set; }
+
+    /// <summary>
+    /// Slide direction when AnimationMode is set to Slide. 0 = Left, 1 = Right, 2 = Up, 3 = Down.
+    /// </summary>
+    [ObservableProperty]
+    public partial int LyricsSlideDirection { get; set; }
+
+    /// <summary>
+    /// Display mode for the lyrics. 0 = Separate Window, 1 = Inline Taskbar Widget.
+    /// </summary>
+    [ObservableProperty]
+    public partial int LyricsDisplayMode { get; set; }
 
     /// <summary>
     /// Hide the lyrics immediately when the media is paused/stopped.
@@ -633,12 +645,14 @@ public partial class UserSettings : ObservableObject
         LastUpdateNotificationUnixSeconds = 0;
         ShowUpdateNotifications = true;
         LegacyTaskbarWidthEnabled = false;
-        LyricsMarqueeEnabled = true;
+        LyricsMarqueeEnabled = false;
         LyricsMarqueeSpeed = 2;
         LyricsFontSize = 12;
         LyricsFontFamily = "Segoe UI";
         LyricsTextColor = "";
         LyricsAnimationMode = 0;
+        LyricsSlideDirection = 0;
+        LyricsDisplayMode = 0;
         LyricsHideWhenPaused = false;
     }
 

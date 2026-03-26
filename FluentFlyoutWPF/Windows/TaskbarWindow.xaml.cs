@@ -656,6 +656,26 @@ public partial class TaskbarWindow : Window
         });
     }
 
+    public void UpdateSyncedLyrics(List<LyricLine>? lyrics, GlobalSystemMediaTransportControlsSession? session)
+    {
+         Dispatcher.BeginInvoke(() => Widget.UpdateSyncedLyrics(lyrics, session));
+    }
+
+    public void UpdatePlainLyrics(string lyrics)
+    {
+         Dispatcher.BeginInvoke(() => Widget.UpdatePlainLyrics(lyrics));
+    }
+
+    public void SetLyricsPaused(bool isPaused)
+    {
+         Dispatcher.BeginInvoke(() => Widget.SetLyricsPaused(isPaused));
+    }
+
+    public void ClearLyrics()
+    {
+         Dispatcher.BeginInvoke(() => Widget.ClearLyrics());
+    }
+
     private (bool, Rect) GetTaskbarXamlElementRect(IntPtr taskbarHandle, ref AutomationElement? elementCache, string elementName)
     {
         if (taskbarHandle == IntPtr.Zero)

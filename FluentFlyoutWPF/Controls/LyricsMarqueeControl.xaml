@@ -9,19 +9,19 @@
              TextOptions.TextRenderingMode="ClearType" TextOptions.TextFormattingMode="Ideal"
              FontFamily="Segoe UI Variable, Microsoft YaHei, Microsoft JhengHei, MS Gothic"
              FlowDirection="LeftToRight">
-    <Canvas Name="MarqueeCanvas" Background="Transparent">
+    <Grid Name="MarqueeGrid" Background="Transparent" ClipToBounds="True">
         <TextBlock Name="MarqueeText"
                    Text=""
                    FontSize="{Binding LyricsFontSize}"
                    FontFamily="{Binding LyricsFontFamily}"
                    FontWeight="Normal"
                    VerticalAlignment="Center"
-                   Canvas.Top="12"
-                   Canvas.Left="0"
+                   HorizontalAlignment="Left"
+                   Margin="0"
                    Opacity="0.85">
             <TextBlock.RenderTransform>
-                <TranslateTransform x:Name="MarqueeTranslate" X="0" />
+                <TranslateTransform x:Name="MarqueeTranslate" X="0" Y="0" />
             </TextBlock.RenderTransform>
         </TextBlock>
-    </Canvas>
+    </Grid>
 </UserControl>

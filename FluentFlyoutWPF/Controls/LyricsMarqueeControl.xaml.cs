@@ -36,6 +36,8 @@ public partial class LyricsMarqueeControl : UserControl
     private double _controlWidth;
     private bool _needsScroll;
 
+    public bool HasLyrics => _hasContent;
+
     public LyricsMarqueeControl()
     {
         InitializeComponent();
@@ -235,40 +237,48 @@ public partial class LyricsMarqueeControl : UserControl
         try
         {
             var timeline = _session.GetTimelineProperties();
-            var playbackInfo = _session.GetPlaybackInfo();
+            if (timeline == null) return;
             
-            TimeSpan position = timeline.Position;
+            var playbackInfo = _session.GetPlaybackInfo();
+            TimeSpan currentPosition = timeline.Position;
 
-            // If playing, we must add the exact elapsed time since Windows last updated the session snapshot.
-            // Otherwise the position will freeze and lag behind by multiple seconds until Windows updates it again.
             if (playbackInfo != null && playbackInfo.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing)
             {
                 TimeSpan elapsedSinceUpdate = DateTimeOffset.Now - timeline.LastUpdatedTime;
-                position += elapsedSinceUpdate;
+                if (elapsedSinceUpdate.TotalHours < 1)
+                    currentPosition += elapsedSinceUpdate;
             }
 
-            // Add a small 100ms offset to compensate for our fade-in animation duration
-            position = position.Add(TimeSpan.FromMilliseconds(100));
+            currentPosition = currentPosition.Add(TimeSpan.FromMilliseconds(100));
 
-            // Find the current lyric line based on position
             int newIndex = -1;
-            for (int i = _syncedLyrics.Count - 1; i >= 0; i--)
+            for (int i = 0; i < _syncedLyrics.Count; i++)
             {
-                if (position >= _syncedLyrics[i].Timestamp)
-                {
+                if (currentPosition >= _syncedLyrics[i].Timestamp)
                     newIndex = i;
+                else
                     break;
-                }
             }
 
-            if (newIndex == _currentLineIndex)
-                return; // Same line, no update needed
-
-            _currentLineIndex = newIndex;
-
-            if (newIndex < 0)
+            if (newIndex != -1 && newIndex != _currentLineIndex)
             {
-                // Before first lyric line
+                _currentLineIndex = newIndex;
+                UpdateCurrentLine(newIndex);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Debug($"Error syncing lyrics: {ex.Message}");
+        }
+    }
+
+    private void UpdateCurrentLine(int newIndex)
+    {
+        try
+        {
+            if (_syncedLyrics == null || newIndex < 0 || newIndex >= _syncedLyrics.Count)
+            {
+                // Before first lyric line or invalid index
                 MarqueeText.Text = "♪ ♪ ♪";
                 _scrollTimer.Stop();
                 _needsScroll = false;
@@ -278,12 +288,18 @@ public partial class LyricsMarqueeControl : UserControl
 
             string lineText = _syncedLyrics[newIndex].Text;
 
-            // Animate the line change (which natively checks layout requirements when completed)
-            AnimateLineChange(lineText);
+            TimeSpan duration = TimeSpan.FromSeconds(3);
+            if (newIndex + 1 < _syncedLyrics.Count)
+            {
+                 duration = _syncedLyrics[newIndex + 1].Timestamp - _syncedLyrics[newIndex].Timestamp;
+                 if (duration.TotalSeconds > 15) duration = TimeSpan.FromSeconds(15);
+            }
+
+            AnimateLineChange(lineText, duration);
         }
         catch (Exception ex)
         {
-            Logger.Debug($"Error getting timeline position: {ex.Message}");
+            Logger.Debug($"Error updating timeline position: {ex.Message}");
         }
     }
 
@@ -293,7 +309,7 @@ public partial class LyricsMarqueeControl : UserControl
         _textWidth = MarqueeText.DesiredSize.Width;
         _controlWidth = ActualWidth > 0 ? ActualWidth : 300;
 
-        if (_textWidth > _controlWidth)
+        if (_textWidth > _controlWidth && SettingsManager.Current.LyricsAnimationMode != 2)
         {
             _needsScroll = true;
             if (!_isPaused)
@@ -306,15 +322,47 @@ public partial class LyricsMarqueeControl : UserControl
         }
     }
 
-    private void AnimateLineChange(string newText)
+    private void AnimateLineChange(string newText, TimeSpan duration)
     {
         try
         {
-            if (SettingsManager.Current.LyricsAnimationMode == 1) // Slide
+            int mode = SettingsManager.Current.LyricsAnimationMode;
+
+            if (mode == 2) // Marquee Sync
             {
+                MarqueeText.BeginAnimation(OpacityProperty, null);
+                MarqueeText.Opacity = _isPaused ? (SettingsManager.Current.LyricsHideWhenPaused ? 0.0 : 0.45) : 0.85;
+
+                MarqueeText.Text = newText;
+                HandleLineMeasurement();
+                
+                double startX = _controlWidth;
+                double endX = -_textWidth;
+
+                var syncScroll = new DoubleAnimation
+                {
+                    From = startX,
+                    To = endX,
+                    Duration = duration
+                };
+
+                MarqueeTranslate.BeginAnimation(TranslateTransform.YProperty, null);
+                MarqueeTranslate.Y = 0;
+                MarqueeTranslate.BeginAnimation(TranslateTransform.XProperty, syncScroll);
+            }
+            else if (mode == 1) // Slide
+            {
+                int dir = SettingsManager.Current.LyricsSlideDirection; // 0:Left, 1:Right, 2:Up, 3:Down
+                double outX = 0, inX = 0, outY = 0, inY = 0;
+                
+                if (dir == 0)      { outX = -_controlWidth - 50; inX = _controlWidth + 50; }
+                else if (dir == 1) { outX = _controlWidth + 50; inX = -_controlWidth - 50; }
+                else if (dir == 2) { outY = -ActualHeight - 20; inY = ActualHeight + 20; }
+                else if (dir == 3) { outY = ActualHeight + 20; inY = -ActualHeight - 20; }
+
                 var slideOut = new DoubleAnimation
                 {
-                    To = -_controlWidth - 50,
+                    To = (dir < 2) ? outX : outY,
                     Duration = TimeSpan.FromMilliseconds(200),
                     EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
                 };
@@ -324,22 +372,32 @@ public partial class LyricsMarqueeControl : UserControl
                     MarqueeText.Text = newText;
                     HandleLineMeasurement();
                     
-                    MarqueeTranslate.BeginAnimation(TranslateTransform.XProperty, null);
-                    MarqueeTranslate.X = _controlWidth + 50;
                     double targetX = _controlWidth > _textWidth ? (_controlWidth - _textWidth) / 2 : 0;
+                    double targetY = 0;
 
-                    var slideIn = new DoubleAnimation
+                    MarqueeTranslate.BeginAnimation(TranslateTransform.XProperty, null);
+                    MarqueeTranslate.BeginAnimation(TranslateTransform.YProperty, null);
+
+                    if (dir < 2) 
                     {
-                        To = targetX,
-                        Duration = TimeSpan.FromMilliseconds(300),
-                        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-                    };
-                    MarqueeTranslate.BeginAnimation(TranslateTransform.XProperty, slideIn);
+                        MarqueeTranslate.X = inX;
+                        MarqueeTranslate.Y = targetY;
+                        var slideIn = new DoubleAnimation { To = targetX, Duration = TimeSpan.FromMilliseconds(300), EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
+                        MarqueeTranslate.BeginAnimation(TranslateTransform.XProperty, slideIn);
+                    }
+                    else
+                    {
+                        MarqueeTranslate.X = targetX;
+                        MarqueeTranslate.Y = inY;
+                        var slideIn = new DoubleAnimation { To = targetY, Duration = TimeSpan.FromMilliseconds(300), EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
+                        MarqueeTranslate.BeginAnimation(TranslateTransform.YProperty, slideIn);
+                    }
                 };
 
-                MarqueeTranslate.BeginAnimation(TranslateTransform.XProperty, slideOut);
+                if (dir < 2) MarqueeTranslate.BeginAnimation(TranslateTransform.XProperty, slideOut);
+                else MarqueeTranslate.BeginAnimation(TranslateTransform.YProperty, slideOut);
             }
-            else // Fade
+            else // 0: Fade
             {
                 var fadeOut = new DoubleAnimation
                 {
@@ -354,7 +412,9 @@ public partial class LyricsMarqueeControl : UserControl
                     HandleLineMeasurement();
                     
                     MarqueeTranslate.BeginAnimation(TranslateTransform.XProperty, null);
+                    MarqueeTranslate.BeginAnimation(TranslateTransform.YProperty, null);
                     MarqueeTranslate.X = _controlWidth > _textWidth ? (_controlWidth - _textWidth) / 2 : 0;
+                    MarqueeTranslate.Y = 0;
 
                     var fadeIn = new DoubleAnimation
                     {
@@ -374,6 +434,7 @@ public partial class LyricsMarqueeControl : UserControl
             MarqueeText.Text = newText;
             HandleLineMeasurement();
             MarqueeTranslate.X = _controlWidth > _textWidth ? (_controlWidth - _textWidth) / 2 : 0;
+            MarqueeTranslate.Y = 0;
         }
     }
 

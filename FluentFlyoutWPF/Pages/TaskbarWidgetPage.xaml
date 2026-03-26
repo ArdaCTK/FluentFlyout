@@ -272,6 +272,19 @@
                     <ui:CardControl Margin="0,0,0,3">
                         <ui:CardControl.Header>
                             <StackPanel Orientation="Vertical">
+                                <TextBlock Text="Display Mode" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
+                                <TextBlock Text="Where the lyrics should be shown" FontSize="12" Opacity="0.5" />
+                            </StackPanel>
+                        </ui:CardControl.Header>
+                        <ComboBox SelectedIndex="{Binding LyricsDisplayMode}" IsEnabled="{Binding IsPremiumUnlocked}">
+                            <ComboBoxItem Content="Separate Window" />
+                            <ComboBoxItem Content="Inline Taskbar Widget" />
+                        </ComboBox>
+                    </ui:CardControl>
+
+                    <ui:CardControl Margin="0,0,0,3">
+                        <ui:CardControl.Header>
+                            <StackPanel Orientation="Vertical">
                                 <TextBlock Text="Text Color (HEX)" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
                                 <TextBlock Text="Leave empty to use Windows accent/theme colors" FontSize="12" Opacity="0.5" />
                             </StackPanel>
@@ -296,9 +309,25 @@
                                 <TextBlock Text="How lyrics transition between lines" FontSize="12" Opacity="0.5" />
                             </StackPanel>
                         </ui:CardControl.Header>
-                        <ComboBox SelectedIndex="{Binding LyricsAnimationMode}" IsEnabled="{Binding IsPremiumUnlocked}">
+                        <ComboBox SelectedIndex="{Binding LyricsAnimationMode}" IsEnabled="{Binding IsPremiumUnlocked}" Width="150">
                             <ComboBoxItem Content="Fade" />
                             <ComboBoxItem Content="Slide" />
+                            <ComboBoxItem Content="Continuous Scroll" />
+                        </ComboBox>
+                    </ui:CardControl>
+
+                    <ui:CardControl Margin="0,0,0,3">
+                        <ui:CardControl.Header>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="Slide Direction" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
+                                <TextBlock Text="Direction applied when using Slide style" FontSize="12" Opacity="0.5" />
+                            </StackPanel>
+                        </ui:CardControl.Header>
+                        <ComboBox SelectedIndex="{Binding LyricsSlideDirection}" IsEnabled="{Binding IsPremiumUnlocked}" Width="150">
+                            <ComboBoxItem Content="Left" />
+                            <ComboBoxItem Content="Right" />
+                            <ComboBoxItem Content="Up" />
+                            <ComboBoxItem Content="Down" />
                         </ComboBox>
                     </ui:CardControl>
 

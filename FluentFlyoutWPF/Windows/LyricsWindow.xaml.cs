@@ -74,18 +74,21 @@ public partial class LyricsWindow : Window
     /// </summary>
     public void UpdateSyncedLyrics(List<LyricLine>? lyrics, GlobalSystemMediaTransportControlsSession? session)
     {
-        if (!SettingsManager.Current.LyricsMarqueeEnabled)
+        Dispatcher.BeginInvoke(() =>
         {
-            Dispatcher.Invoke(() => Visibility = Visibility.Collapsed);
-            MarqueeWidget.Clear();
-            return;
-        }
+            if (!SettingsManager.Current.LyricsMarqueeEnabled)
+            {
+                Visibility = Visibility.Collapsed;
+                MarqueeWidget.Clear();
+                return;
+            }
 
-        MarqueeWidget.SetSyncedLyrics(lyrics, session);
-        if (lyrics != null && lyrics.Count > 0)
-            Dispatcher.Invoke(() => Visibility = Visibility.Visible);
-        else
-            Dispatcher.Invoke(() => Visibility = Visibility.Collapsed);
+            MarqueeWidget.SetSyncedLyrics(lyrics, session);
+            if (lyrics != null && lyrics.Count > 0)
+                Visibility = Visibility.Visible;
+            else
+                Visibility = Visibility.Collapsed;
+        });
     }
 
     /// <summary>
@@ -93,18 +96,21 @@ public partial class LyricsWindow : Window
     /// </summary>
     public void UpdatePlainLyrics(string? lyrics)
     {
-        if (!SettingsManager.Current.LyricsMarqueeEnabled)
+        Dispatcher.BeginInvoke(() =>
         {
-            Dispatcher.Invoke(() => Visibility = Visibility.Collapsed);
-            MarqueeWidget.Clear();
-            return;
-        }
+            if (!SettingsManager.Current.LyricsMarqueeEnabled)
+            {
+                Visibility = Visibility.Collapsed;
+                MarqueeWidget.Clear();
+                return;
+            }
 
-        MarqueeWidget.SetPlainLyrics(lyrics);
-        if (!string.IsNullOrWhiteSpace(lyrics))
-            Dispatcher.Invoke(() => Visibility = Visibility.Visible);
-        else
-            Dispatcher.Invoke(() => Visibility = Visibility.Collapsed);
+            MarqueeWidget.SetPlainLyrics(lyrics);
+            if (!string.IsNullOrWhiteSpace(lyrics))
+                Visibility = Visibility.Visible;
+            else
+                Visibility = Visibility.Collapsed;
+        });
     }
 
     /// <summary>
@@ -112,8 +118,11 @@ public partial class LyricsWindow : Window
     /// </summary>
     public void ClearLyrics()
     {
-        MarqueeWidget.Clear();
-        Dispatcher.Invoke(() => Visibility = Visibility.Collapsed);
+        Dispatcher.BeginInvoke(() =>
+        {
+            MarqueeWidget.Clear();
+            Visibility = Visibility.Collapsed;
+        });
     }
 
     /// <summary>
@@ -121,7 +130,10 @@ public partial class LyricsWindow : Window
     /// </summary>
     public void SetPaused(bool paused)
     {
-        MarqueeWidget.SetPaused(paused);
+        Dispatcher.BeginInvoke(() =>
+        {
+            MarqueeWidget.SetPaused(paused);
+        });
     }
 
     private IntPtr GetMainTaskbarHandle()

@@ -14,6 +14,8 @@ using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using Windows.Media.Control;
 using Wpf.Ui.Controls;
+using FluentFlyoutWPF.Classes;
+using System.Collections.Generic;
 
 namespace FluentFlyout.Controls;
 
@@ -62,6 +64,8 @@ public partial class TaskbarWidgetControl : UserControl
 
         Background = new SolidColorBrush(Color.FromArgb(1, 0, 0, 0)); ;
         
+        InlineLyricsControl.DataContext = SettingsManager.Current;
+
         // Initialize control order
         ReorderControls();
     }
@@ -101,8 +105,13 @@ public partial class TaskbarWidgetControl : UserControl
         SongArtist.Foreground = foreground;
     }
 
+    private bool _isHovered;
+
     private void Grid_MouseEnter(object sender, MouseEventArgs e)
     {
+        _isHovered = true;
+        UpdateInlineVisibility();
+
         if (string.IsNullOrEmpty(SongTitle.Text + SongArtist.Text)) return;
 
         SolidColorBrush targetBackgroundBrush;
@@ -146,6 +155,9 @@ public partial class TaskbarWidgetControl : UserControl
 
     private void Grid_MouseLeave(object sender, MouseEventArgs e)
     {
+        _isHovered = false;
+        UpdateInlineVisibility();
+
         if (string.IsNullOrEmpty(SongTitle.Text + SongArtist.Text)) return;
 
         // Animate back to transparent
@@ -207,10 +219,113 @@ public partial class TaskbarWidgetControl : UserControl
             logicalWidth += (int)(102);
         }
 
+        UpdateInlineLyricsLayout(_cachedTitleWidth, _cachedArtistWidth);
 
         double logicalHeight = 40; // default height
 
         return (logicalWidth, logicalHeight);
+    }
+
+    public void UpdateInlineLyricsLayout(double titleWidth, double artistWidth)
+    {
+        if (SettingsManager.Current.LyricsDisplayMode != 1 || !SettingsManager.Current.LyricsMarqueeEnabled)
+        {
+            InlineLyricsControl.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        double textWidth = Math.Max(titleWidth, artistWidth);
+        double controlsWidth = (SettingsManager.Current.TaskbarWidgetControlsEnabled && ControlsStackPanel.Visibility == Visibility.Visible) ? 102 : 0;
+        
+        InlineLyricsControl.Width = Math.Max(textWidth + controlsWidth, 100);
+        
+        if (SettingsManager.Current.TaskbarWidgetControlsPosition == 0)
+        {
+            InlineLyricsControl.Margin = new Thickness(50 + controlsWidth, 0, 0, 0);
+        }
+        else
+        {
+            InlineLyricsControl.Margin = new Thickness(50, 0, 0, 0);
+        }
+
+        UpdateInlineVisibility();
+    }
+
+    private bool _isHiddenByLyrics = false;
+    public void UpdateInlineVisibility()
+    {
+         if (SettingsManager.Current.LyricsDisplayMode == 1 && SettingsManager.Current.LyricsMarqueeEnabled && InlineLyricsControl.HasLyrics)
+         {
+              if (!_isHovered)
+              {
+                  InlineLyricsControl.Visibility = Visibility.Visible;
+                  
+                  SongInfoStackPanel.BeginAnimation(OpacityProperty, null);
+                  ControlsStackPanel.BeginAnimation(OpacityProperty, null);
+                  SongInfoStackPanel.Opacity = 0;
+                  ControlsStackPanel.Opacity = 0;
+                  
+                  SongInfoStackPanel.IsHitTestVisible = false;
+                  ControlsStackPanel.IsHitTestVisible = false;
+                  
+                  _isHiddenByLyrics = true;
+              }
+              else
+              {
+                  InlineLyricsControl.Visibility = Visibility.Collapsed;
+                  
+                  SongInfoStackPanel.BeginAnimation(OpacityProperty, null);
+                  ControlsStackPanel.BeginAnimation(OpacityProperty, null);
+                  SongInfoStackPanel.Opacity = 1;
+                  ControlsStackPanel.Opacity = 1;
+                  
+                  SongInfoStackPanel.IsHitTestVisible = true;
+                  ControlsStackPanel.IsHitTestVisible = true;
+                  
+                  _isHiddenByLyrics = true;
+              }
+         }
+         else
+         {
+              if (SettingsManager.Current.LyricsDisplayMode == 1)
+                  InlineLyricsControl.Visibility = Visibility.Collapsed;
+              
+              if (_isHiddenByLyrics)
+              {
+                  SongInfoStackPanel.BeginAnimation(OpacityProperty, null);
+                  ControlsStackPanel.BeginAnimation(OpacityProperty, null);
+                  SongInfoStackPanel.Opacity = 1;
+                  ControlsStackPanel.Opacity = 1;
+                  
+                  SongInfoStackPanel.IsHitTestVisible = true;
+                  ControlsStackPanel.IsHitTestVisible = true;
+                  
+                  _isHiddenByLyrics = false;
+              }
+         }
+    }
+
+    public void UpdateSyncedLyrics(List<LyricLine>? lyrics, GlobalSystemMediaTransportControlsSession? session)
+    {
+         InlineLyricsControl.SetSyncedLyrics(lyrics, session);
+         UpdateInlineVisibility();
+    }
+
+    public void UpdatePlainLyrics(string lyrics)
+    {
+         InlineLyricsControl.SetPlainLyrics(lyrics);
+         UpdateInlineVisibility();
+    }
+
+    public void SetLyricsPaused(bool isPaused)
+    {
+         InlineLyricsControl.SetPaused(isPaused);
+    }
+
+    public void ClearLyrics()
+    {
+         InlineLyricsControl.Clear();
+         UpdateInlineVisibility();
     }
 
     public void UpdateUi(string title, string artist, BitmapImage? icon, GlobalSystemMediaTransportControlsSessionPlaybackStatus? playbackStatus, GlobalSystemMediaTransportControlsSessionPlaybackControls? playbackControls = null)
@@ -343,6 +458,8 @@ public partial class TaskbarWidgetControl : UserControl
                 : Visibility.Collapsed;
 
             Visibility = Visibility.Visible;
+            
+            UpdateInlineVisibility();
         });
     }
 

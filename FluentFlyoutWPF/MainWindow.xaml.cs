@@ -477,6 +477,7 @@ public partial class MainWindow : MicaWindow
 
         bool isPaused = playbackInfo.PlaybackStatus != GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
         _lyricsWindow?.SetPaused(isPaused);
+        taskbarWindow?.SetLyricsPaused(isPaused);
         UpdateLyrics(songInfo.Title, songInfo.Artist, focusedSession.ControlSession);
     }
 
@@ -545,6 +546,7 @@ public partial class MainWindow : MicaWindow
 
         bool isPaused = playbackInfo?.PlaybackStatus != GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
         _lyricsWindow?.SetPaused(isPaused);
+        taskbarWindow?.SetLyricsPaused(isPaused);
         UpdateLyrics(songInfo.Title, songInfo.Artist, focusedSession.ControlSession);
 
         if (IsVisible)
@@ -597,6 +599,7 @@ public partial class MainWindow : MicaWindow
 
         bool isPaused = playbackInfo.PlaybackStatus != GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
         _lyricsWindow?.SetPaused(isPaused);
+        taskbarWindow?.SetLyricsPaused(isPaused);
         UpdateLyrics(songInfo.Title, songInfo.Artist, mediaSession.ControlSession);
 
         pauseOtherMediaSessionsIfNeeded(mediaSession);
@@ -678,6 +681,7 @@ public partial class MainWindow : MicaWindow
         {
             taskbarWindow?.UpdateUi("-", "-", null, GlobalSystemMediaTransportControlsSessionPlaybackStatus.Closed);
             _lyricsWindow?.ClearLyrics();
+            taskbarWindow?.ClearLyrics();
         }
         else
         {
@@ -692,17 +696,26 @@ public partial class MainWindow : MicaWindow
 
             bool isPaused = playbackInfo.PlaybackStatus != GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
             _lyricsWindow?.SetPaused(isPaused);
+            taskbarWindow?.SetLyricsPaused(isPaused);
             UpdateLyrics(songInfo.Title, songInfo.Artist, focusedSession.ControlSession);
         }
     }
 
     private async void UpdateLyrics(string title, string artist, GlobalSystemMediaTransportControlsSession controlSession)
     {
-        if (_lyricsWindow == null || !SettingsManager.Current.LyricsMarqueeEnabled)
+        if (!SettingsManager.Current.LyricsMarqueeEnabled)
         {
             _lyricsWindow?.ClearLyrics();
+            taskbarWindow?.ClearLyrics();
             return;
         }
+
+        bool isInline = SettingsManager.Current.LyricsDisplayMode == 1;
+
+        if (isInline)
+            _lyricsWindow?.ClearLyrics();
+        else
+            taskbarWindow?.ClearLyrics();
 
         // Avoid redundant lookups for the same song
         string key = $"{title}||{artist}".ToLowerInvariant();
@@ -716,19 +729,22 @@ public partial class MainWindow : MicaWindow
             var syncedLyrics = await _lyricsService.GetSyncedLyricsAsync(title, artist);
             if (syncedLyrics != null && syncedLyrics.Count > 0)
             {
-                _lyricsWindow.UpdateSyncedLyrics(syncedLyrics, controlSession);
+                if (isInline) taskbarWindow?.UpdateSyncedLyrics(syncedLyrics, controlSession);
+                else _lyricsWindow?.UpdateSyncedLyrics(syncedLyrics, controlSession);
                 return;
             }
 
             // Fall back to plain lyrics (scrolling marquee)
             var plainLyrics = await _lyricsService.GetPlainLyricsAsync(title, artist);
-            _lyricsWindow.UpdatePlainLyrics(plainLyrics);
+            if (isInline) taskbarWindow?.UpdatePlainLyrics(plainLyrics);
+            else _lyricsWindow?.UpdatePlainLyrics(plainLyrics);
         }
         catch (Exception ex)
         {
             Logger.Error(ex, "Error updating lyrics");
             _lastLyricsKey = string.Empty; // Allow retry on next update beat
-            _lyricsWindow.ClearLyrics();
+            _lyricsWindow?.ClearLyrics();
+            taskbarWindow?.ClearLyrics();
         }
     }
 
