@@ -252,14 +252,23 @@ public partial class TaskbarWidgetControl : UserControl
     }
 
     private bool _isHiddenByLyrics = false;
+    private bool _isLyricsPaused = false;
+
     public void UpdateInlineVisibility()
     {
-         if (SettingsManager.Current.LyricsDisplayMode == 1 && SettingsManager.Current.LyricsMarqueeEnabled && InlineLyricsControl.HasLyrics)
+         bool isLyricsVisible = SettingsManager.Current.LyricsDisplayMode == 1 && 
+                                SettingsManager.Current.LyricsMarqueeEnabled && 
+                                InlineLyricsControl.HasLyrics && 
+                                !_isHovered;
+
+         if (_isLyricsPaused && SettingsManager.Current.LyricsHideWhenPaused)
+             isLyricsVisible = false;
+
+         if (isLyricsVisible)
          {
-              if (!_isHovered)
-              {
-                  InlineLyricsControl.Visibility = Visibility.Visible;
-                  
+             InlineLyricsControl.Visibility = Visibility.Visible;
+             if (!_isHiddenByLyrics)
+             {
                   SongInfoStackPanel.BeginAnimation(OpacityProperty, null);
                   ControlsStackPanel.BeginAnimation(OpacityProperty, null);
                   SongInfoStackPanel.Opacity = 0;
@@ -269,29 +278,17 @@ public partial class TaskbarWidgetControl : UserControl
                   ControlsStackPanel.IsHitTestVisible = false;
                   
                   _isHiddenByLyrics = true;
-              }
-              else
-              {
-                  InlineLyricsControl.Visibility = Visibility.Collapsed;
-                  
-                  SongInfoStackPanel.BeginAnimation(OpacityProperty, null);
-                  ControlsStackPanel.BeginAnimation(OpacityProperty, null);
-                  SongInfoStackPanel.Opacity = 1;
-                  ControlsStackPanel.Opacity = 1;
-                  
-                  SongInfoStackPanel.IsHitTestVisible = true;
-                  ControlsStackPanel.IsHitTestVisible = true;
-                  
-                  _isHiddenByLyrics = true;
-              }
+             }
          }
          else
          {
-              if (SettingsManager.Current.LyricsDisplayMode == 1)
+             if (SettingsManager.Current.LyricsDisplayMode == 1 && InlineLyricsControl.HasLyrics)
+             {
                   InlineLyricsControl.Visibility = Visibility.Collapsed;
+             }
               
-              if (_isHiddenByLyrics)
-              {
+             if (_isHiddenByLyrics)
+             {
                   SongInfoStackPanel.BeginAnimation(OpacityProperty, null);
                   ControlsStackPanel.BeginAnimation(OpacityProperty, null);
                   SongInfoStackPanel.Opacity = 1;
@@ -301,7 +298,7 @@ public partial class TaskbarWidgetControl : UserControl
                   ControlsStackPanel.IsHitTestVisible = true;
                   
                   _isHiddenByLyrics = false;
-              }
+             }
          }
     }
 
@@ -319,7 +316,9 @@ public partial class TaskbarWidgetControl : UserControl
 
     public void SetLyricsPaused(bool isPaused)
     {
+         _isLyricsPaused = isPaused;
          InlineLyricsControl.SetPaused(isPaused);
+         UpdateInlineVisibility();
     }
 
     public void ClearLyrics()

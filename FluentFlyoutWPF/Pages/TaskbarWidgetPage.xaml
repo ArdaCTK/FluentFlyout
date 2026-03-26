@@ -331,6 +331,19 @@
                         </ComboBox>
                     </ui:CardControl>
 
+                    <ui:CardControl Margin="0,0,0,3">
+                        <ui:CardControl.Header>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="Continuous Scroll Direction" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
+                                <TextBlock Text="Direction used in Continuous Scroll style" FontSize="12" Opacity="0.5" />
+                            </StackPanel>
+                        </ui:CardControl.Header>
+                        <ComboBox SelectedIndex="{Binding LyricsContinuousScrollDirection}" IsEnabled="{Binding IsPremiumUnlocked}" Width="150">
+                            <ComboBoxItem Content="Right to Left" />
+                            <ComboBoxItem Content="Left to Right" />
+                        </ComboBox>
+                    </ui:CardControl>
+
                     <ui:CardControl Margin="0,0,0,0">
                         <ui:CardControl.Header>
                             <StackPanel Orientation="Vertical">

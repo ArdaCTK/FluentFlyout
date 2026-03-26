@@ -481,6 +481,13 @@ public partial class MainWindow : MicaWindow
         UpdateLyrics(songInfo.Title, songInfo.Artist, focusedSession.ControlSession);
     }
 
+    public void DispatchLyricsDisplayModeChanged()
+    {
+        Dispatcher.BeginInvoke(() => {
+            UpdateTaskbar();
+        });
+    }
+
     public void reportBug(object? sender, EventArgs e)
     {
         Process.Start(new ProcessStartInfo

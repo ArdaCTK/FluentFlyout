@@ -10,18 +10,47 @@
              FontFamily="Segoe UI Variable, Microsoft YaHei, Microsoft JhengHei, MS Gothic"
              FlowDirection="LeftToRight">
     <Grid Name="MarqueeGrid" Background="Transparent" ClipToBounds="True">
-        <TextBlock Name="MarqueeText"
-                   Text=""
-                   FontSize="{Binding LyricsFontSize}"
-                   FontFamily="{Binding LyricsFontFamily}"
-                   FontWeight="Normal"
-                   VerticalAlignment="Center"
-                   HorizontalAlignment="Left"
-                   Margin="0"
-                   Opacity="0.85">
-            <TextBlock.RenderTransform>
-                <TranslateTransform x:Name="MarqueeTranslate" X="0" Y="0" />
-            </TextBlock.RenderTransform>
-        </TextBlock>
+        
+        <!-- Standard Fade/Slide Dual TextBlocks -->
+        <Grid Name="SingleLineGrid" Visibility="Visible">
+            <TextBlock Name="MarqueeTextA"
+                       Text=""
+                       FontSize="{Binding LyricsFontSize}"
+                       FontFamily="{Binding LyricsFontFamily}"
+                       FontWeight="Normal"
+                       VerticalAlignment="Center"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center"
+                       Margin="5,0"
+                       Opacity="0">
+                <TextBlock.RenderTransform>
+                    <TranslateTransform x:Name="MarqueeTranslateA" X="0" Y="0" />
+                </TextBlock.RenderTransform>
+            </TextBlock>
+            <TextBlock Name="MarqueeTextB"
+                       Text=""
+                       FontSize="{Binding LyricsFontSize}"
+                       FontFamily="{Binding LyricsFontFamily}"
+                       FontWeight="Normal"
+                       VerticalAlignment="Center"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center"
+                       Margin="5,0"
+                       Opacity="0">
+                <TextBlock.RenderTransform>
+                    <TranslateTransform x:Name="MarqueeTranslateB" X="0" Y="0" />
+                </TextBlock.RenderTransform>
+            </TextBlock>
+        </Grid>
+
+        <!-- Continuous Scroll Ribbon Canvas -->
+        <Canvas Name="RibbonCanvas" Visibility="Collapsed">
+            <StackPanel Name="RibbonPanel" Orientation="Horizontal" VerticalAlignment="Center" Height="{Binding ActualHeight, ElementName=RibbonCanvas}">
+                <StackPanel.RenderTransform>
+                    <TranslateTransform x:Name="RibbonTranslate" X="0" Y="0" />
+                </StackPanel.RenderTransform>
+            </StackPanel>
+        </Canvas>
+
     </Grid>
 </UserControl>

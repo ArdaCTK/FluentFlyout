@@ -396,10 +396,24 @@ public partial class UserSettings : ObservableObject
     public partial int LyricsSlideDirection { get; set; }
 
     /// <summary>
+    /// Scroll direction when AnimationMode is Continuous Scroll. 0 = Right to Left, 1 = Left to Right.
+    /// </summary>
+    [ObservableProperty]
+    public partial int LyricsContinuousScrollDirection { get; set; }
+
+    /// <summary>
     /// Display mode for the lyrics. 0 = Separate Window, 1 = Inline Taskbar Widget.
     /// </summary>
     [ObservableProperty]
     public partial int LyricsDisplayMode { get; set; }
+
+    partial void OnLyricsDisplayModeChanged(int value)
+    {
+        if (System.Windows.Application.Current?.MainWindow is FluentFlyoutWPF.MainWindow main)
+        {
+            main.DispatchLyricsDisplayModeChanged();
+        }
+    }
 
     /// <summary>
     /// Hide the lyrics immediately when the media is paused/stopped.
@@ -652,6 +666,7 @@ public partial class UserSettings : ObservableObject
         LyricsTextColor = "";
         LyricsAnimationMode = 0;
         LyricsSlideDirection = 0;
+        LyricsContinuousScrollDirection = 0;
         LyricsDisplayMode = 0;
         LyricsHideWhenPaused = false;
     }
