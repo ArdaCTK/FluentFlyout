@@ -262,6 +262,10 @@ public partial class LyricsMarqueeControl : UserControl
                 _syncTimer.Stop();
                 _scrollTimer.Stop();
                 double op = SettingsManager.Current.LyricsHideWhenPaused ? 0.0 : 0.45;
+                
+                MarqueeTextA.BeginAnimation(OpacityProperty, null);
+                MarqueeTextB.BeginAnimation(OpacityProperty, null);
+                
                 MarqueeTextA.Opacity = _isTextAActive ? op : 0;
                 MarqueeTextB.Opacity = !_isTextAActive ? op : 0;
                 
@@ -286,6 +290,9 @@ public partial class LyricsMarqueeControl : UserControl
                 {
                     _scrollTimer.Start();
                 }
+                
+                MarqueeTextA.BeginAnimation(OpacityProperty, null);
+                MarqueeTextB.BeginAnimation(OpacityProperty, null);
                 
                 MarqueeTextA.Opacity = _isTextAActive ? 0.85 : 0;
                 MarqueeTextB.Opacity = !_isTextAActive ? 0.85 : 0;
