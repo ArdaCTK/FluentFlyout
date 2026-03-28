@@ -324,19 +324,27 @@ public partial class LyricsMarqueeControl : UserControl
     private TimeSpan GetExtrapolatedPosition()
     {
         if (_session == null) return TimeSpan.Zero;
-        var timeline = _session.GetTimelineProperties();
-        if (timeline == null) return TimeSpan.Zero;
-        
-        var playbackInfo = _session.GetPlaybackInfo();
-        TimeSpan currentPosition = timeline.Position;
-
-        if (playbackInfo != null && playbackInfo.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing)
+        try
         {
-            TimeSpan elapsedSinceUpdate = DateTimeOffset.Now - timeline.LastUpdatedTime;
-            if (elapsedSinceUpdate.TotalHours < 1) currentPosition += elapsedSinceUpdate;
-        }
+            var timeline = _session.GetTimelineProperties();
+            if (timeline == null) return TimeSpan.Zero;
+            
+            var playbackInfo = _session.GetPlaybackInfo();
+            TimeSpan currentPosition = timeline.Position;
 
-        return currentPosition.Add(TimeSpan.FromMilliseconds(100));
+            if (playbackInfo != null && playbackInfo.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing)
+            {
+                TimeSpan elapsedSinceUpdate = DateTimeOffset.Now - timeline.LastUpdatedTime;
+                if (elapsedSinceUpdate.TotalHours < 1) currentPosition += elapsedSinceUpdate;
+            }
+
+            return currentPosition.Add(TimeSpan.FromMilliseconds(100));
+        }
+        catch (Exception ex)
+        {
+            Logger.Debug($"Error extrapolating position: {ex.Message}");
+            return TimeSpan.Zero;
+        }
     }
 
     private void UpdateCurrentLine()

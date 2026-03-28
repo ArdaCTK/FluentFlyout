@@ -53,6 +53,15 @@ public partial class LyricsWindow : Window
         SetupWindow();
     }
 
+    protected override void OnClosed(EventArgs e)
+    {
+        // Stop the timer before the window handle becomes invalid,
+        // preventing spurious ticks after Close() is called.
+        _positionTimer.Stop();
+        _positionTimer.Tick -= (s, ev) => UpdatePosition();
+        base.OnClosed(e);
+    }
+
     private static IntPtr WindowProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         switch (msg)
@@ -76,6 +85,7 @@ public partial class LyricsWindow : Window
     {
         Dispatcher.BeginInvoke(() =>
         {
+            EnsurePositionTimerState();
             if (!SettingsManager.Current.LyricsMarqueeEnabled)
             {
                 Visibility = Visibility.Collapsed;
@@ -98,6 +108,7 @@ public partial class LyricsWindow : Window
     {
         Dispatcher.BeginInvoke(() =>
         {
+            EnsurePositionTimerState();
             if (!SettingsManager.Current.LyricsMarqueeEnabled)
             {
                 Visibility = Visibility.Collapsed;
@@ -120,6 +131,7 @@ public partial class LyricsWindow : Window
     {
         Dispatcher.BeginInvoke(() =>
         {
+            EnsurePositionTimerState();
             MarqueeWidget.Clear();
             Visibility = Visibility.Collapsed;
         });
@@ -132,6 +144,7 @@ public partial class LyricsWindow : Window
     {
         Dispatcher.BeginInvoke(() =>
         {
+            EnsurePositionTimerState();
             MarqueeWidget.SetPaused(paused);
         });
     }
@@ -167,16 +180,12 @@ public partial class LyricsWindow : Window
 
     private void UpdatePosition()
     {
-        if (!SettingsManager.Current.LyricsMarqueeEnabled)
+        EnsurePositionTimerState();
+        if (!SettingsManager.Current.LyricsMarqueeEnabled || SettingsManager.Current.LyricsDisplayMode == 1)
         {
-            if (_positionTimer.IsEnabled)
-                _positionTimer.Stop();
             Dispatcher.Invoke(() => Visibility = Visibility.Collapsed);
             return;
         }
-
-        if (!_positionTimer.IsEnabled)
-            _positionTimer.Start();
 
         try
         {
@@ -200,6 +209,21 @@ public partial class LyricsWindow : Window
         catch (Exception ex)
         {
             Logger.Error(ex, "Lyrics Window error during position update");
+        }
+    }
+
+    private void EnsurePositionTimerState()
+    {
+        bool shouldRun = SettingsManager.Current.LyricsMarqueeEnabled && SettingsManager.Current.LyricsDisplayMode != 1;
+        if (shouldRun)
+        {
+            if (!_positionTimer.IsEnabled)
+                _positionTimer.Start();
+        }
+        else
+        {
+            if (_positionTimer.IsEnabled)
+                _positionTimer.Stop();
         }
     }
 

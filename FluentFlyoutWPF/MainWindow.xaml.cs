@@ -79,6 +79,9 @@ public partial class MainWindow : MicaWindow
     private LyricsWindow? _lyricsWindow;
     private readonly LyricsService _lyricsService = new();
     private string _lastLyricsKey = string.Empty;
+    private readonly object _lyricsKeyLock = new();
+    private DateTime _lyricsRetryNotBeforeUtc = DateTime.MinValue;
+    private static readonly TimeSpan LyricsRetryCooldown = TimeSpan.FromSeconds(30);
 
     public MainWindow()
     {
@@ -712,10 +715,17 @@ public partial class MainWindow : MicaWindow
     {
         if (!SettingsManager.Current.LyricsMarqueeEnabled)
         {
+            lock (_lyricsKeyLock)
+            {
+                _lastLyricsKey = string.Empty;
+            }
             _lyricsWindow?.ClearLyrics();
             taskbarWindow?.ClearLyrics();
             return;
         }
+
+        if (DateTime.UtcNow < _lyricsRetryNotBeforeUtc)
+            return;
 
         bool isInline = SettingsManager.Current.LyricsDisplayMode == 1;
 
@@ -726,12 +736,17 @@ public partial class MainWindow : MicaWindow
 
         // Avoid redundant lookups for the same song
         string key = $"{title}||{artist}".ToLowerInvariant();
-        if (key == _lastLyricsKey)
-            return;
-        _lastLyricsKey = key;
+        lock (_lyricsKeyLock)
+        {
+            if (key == _lastLyricsKey)
+                return;
+            _lastLyricsKey = key;
+        }
 
         try
         {
+            _lyricsRetryNotBeforeUtc = DateTime.MinValue;
+
             // Try synced lyrics first (for time-synchronized display)
             var syncedLyrics = await _lyricsService.GetSyncedLyricsAsync(title, artist);
             if (syncedLyrics != null && syncedLyrics.Count > 0)
@@ -749,7 +764,11 @@ public partial class MainWindow : MicaWindow
         catch (Exception ex)
         {
             Logger.Error(ex, "Error updating lyrics");
-            _lastLyricsKey = string.Empty; // Allow retry on next update beat
+            lock (_lyricsKeyLock)
+            {
+                _lastLyricsKey = string.Empty; // Allow retry after cooldown
+            }
+            _lyricsRetryNotBeforeUtc = DateTime.UtcNow.Add(LyricsRetryCooldown);
             _lyricsWindow?.ClearLyrics();
             taskbarWindow?.ClearLyrics();
         }
@@ -1383,6 +1402,9 @@ public partial class MainWindow : MicaWindow
 
             if (taskbarWindow?.IsLoaded == true)
                 taskbarWindow.Close();
+
+            if (_lyricsWindow?.IsLoaded == true)
+                _lyricsWindow.Close();
 
             // dispose mutex
             singleton?.Dispose();

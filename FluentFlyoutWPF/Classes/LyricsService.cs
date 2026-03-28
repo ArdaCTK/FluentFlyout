@@ -4,6 +4,7 @@
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace FluentFlyoutWPF.Classes;
 
@@ -38,6 +39,7 @@ public sealed class LyricsService
     private List<LyricLine>? _cachedSyncedLyrics;
     private string? _cachedPlainLyrics;
     private bool _cacheIsValid;
+    private readonly SemaphoreSlim _cacheLock = new(1, 1);
 
     static LyricsService()
     {
@@ -64,72 +66,80 @@ public sealed class LyricsService
 
     private async Task FetchIfNeeded(string trackName, string artistName, int durationSeconds)
     {
-        if (string.IsNullOrWhiteSpace(trackName) || trackName == "-")
-            return;
-
-        string key = $"{trackName}||{artistName}".ToLowerInvariant();
-        if (key == _cachedKey && _cacheIsValid)
-            return;
-
-        _cachedKey = key;
-        _cacheIsValid = false;
-        _cachedSyncedLyrics = null;
-        _cachedPlainLyrics = null;
-
+        await _cacheLock.WaitAsync();
         try
         {
-            string encodedTrack = Uri.EscapeDataString(trackName);
-            string encodedArtist = Uri.EscapeDataString(artistName ?? string.Empty);
-
-            string url = $"api/get?track_name={encodedTrack}&artist_name={encodedArtist}";
-            if (durationSeconds > 0)
-                url += $"&duration={durationSeconds}";
-
-            using var response = await _httpClient.GetAsync(url);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                Logger.Debug($"LRCLIB returned {response.StatusCode} for '{trackName}' by '{artistName}'");
-                _cacheIsValid = true;
+            if (string.IsNullOrWhiteSpace(trackName) || trackName == "-")
                 return;
-            }
 
-            string json = await response.Content.ReadAsStringAsync();
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
+            string key = $"{trackName}||{artistName}".ToLowerInvariant();
+            if (key == _cachedKey && _cacheIsValid)
+                return;
 
-            // Try synced lyrics first (preferred for time-sync)
-            if (root.TryGetProperty("syncedLyrics", out var syncedProp) && syncedProp.ValueKind == JsonValueKind.String)
+            _cachedKey = key;
+            _cacheIsValid = false;
+            _cachedSyncedLyrics = null;
+            _cachedPlainLyrics = null;
+
+            try
             {
-                string? synced = syncedProp.GetString();
-                if (!string.IsNullOrWhiteSpace(synced))
+                string encodedTrack = Uri.EscapeDataString(trackName);
+                string encodedArtist = Uri.EscapeDataString(artistName ?? string.Empty);
+
+                string url = $"api/get?track_name={encodedTrack}&artist_name={encodedArtist}";
+                if (durationSeconds > 0)
+                    url += $"&duration={durationSeconds}";
+
+                using var response = await _httpClient.GetAsync(url);
+
+                if (!response.IsSuccessStatusCode)
                 {
-                    _cachedSyncedLyrics = ParseLrc(synced);
+                    Logger.Debug($"LRCLIB returned {response.StatusCode} for '{trackName}' by '{artistName}'");
+                    _cacheIsValid = true;
+                    return;
                 }
-            }
 
-            // Also get plain lyrics as fallback
-            if (root.TryGetProperty("plainLyrics", out var plainProp) && plainProp.ValueKind == JsonValueKind.String)
+                string json = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                // Try synced lyrics first (preferred for time-sync)
+                if (root.TryGetProperty("syncedLyrics", out var syncedProp) && syncedProp.ValueKind == JsonValueKind.String)
+                {
+                    string? synced = syncedProp.GetString();
+                    if (!string.IsNullOrWhiteSpace(synced))
+                    {
+                        _cachedSyncedLyrics = ParseLrc(synced);
+                    }
+                }
+
+                // Also get plain lyrics as fallback
+                if (root.TryGetProperty("plainLyrics", out var plainProp) && plainProp.ValueKind == JsonValueKind.String)
+                {
+                    _cachedPlainLyrics = plainProp.GetString();
+                }
+
+                _cacheIsValid = true;
+            }
+            catch (TaskCanceledException)
             {
-                _cachedPlainLyrics = plainProp.GetString();
+                Logger.Warn($"LRCLIB request timed out for '{trackName}' by '{artistName}'");
+                throw;
             }
-
-            _cacheIsValid = true;
+            catch (HttpRequestException ex)
+            {
+                Logger.Warn(ex, $"LRCLIB request failed for '{trackName}' by '{artistName}'");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, $"Unexpected error fetching lyrics for '{trackName}' by '{artistName}'");
+                throw;
+            }
         }
-        catch (TaskCanceledException)
+        finally
         {
-            Logger.Warn($"LRCLIB request timed out for '{trackName}' by '{artistName}'");
-            throw;
-        }
-        catch (HttpRequestException ex)
-        {
-            Logger.Warn(ex, $"LRCLIB request failed for '{trackName}' by '{artistName}'");
-            throw;
-        }
-        catch (Exception ex)
-        {
-            Logger.Error(ex, $"Unexpected error fetching lyrics for '{trackName}' by '{artistName}'");
-            throw;
+            _cacheLock.Release();
         }
     }
 
@@ -168,9 +178,17 @@ public sealed class LyricsService
 
     public void ClearCache()
     {
-        _cachedKey = string.Empty;
-        _cachedSyncedLyrics = null;
-        _cachedPlainLyrics = null;
-        _cacheIsValid = false;
+        _cacheLock.Wait();
+        try
+        {
+            _cachedKey = string.Empty;
+            _cachedSyncedLyrics = null;
+            _cachedPlainLyrics = null;
+            _cacheIsValid = false;
+        }
+        finally
+        {
+            _cacheLock.Release();
+        }
     }
 }

@@ -360,7 +360,7 @@ public partial class UserSettings : ObservableObject
     public partial bool LyricsMarqueeEnabled { get; set; }
 
     /// <summary>
-    /// Scroll speed in pixels per frame (1-5). Default: 2.
+    /// Scroll speed in pixels per frame for non-synced lyrics (1-5). Default: 2.
     /// </summary>
     [ObservableProperty]
     public partial int LyricsMarqueeSpeed { get; set; }
@@ -369,7 +369,7 @@ public partial class UserSettings : ObservableObject
     /// Font size for the lyrics marquee. Default: 12.
     /// </summary>
     [ObservableProperty]
-    public partial int LyricsFontSize { get; set; }
+    public partial double LyricsFontSize { get; set; }
 
     /// <summary>
     /// Font family for the lyrics. Default: Segoe UI.
@@ -661,7 +661,7 @@ public partial class UserSettings : ObservableObject
         LegacyTaskbarWidthEnabled = false;
         LyricsMarqueeEnabled = false;
         LyricsMarqueeSpeed = 2;
-        LyricsFontSize = 12;
+        LyricsFontSize = 12.0;
         LyricsFontFamily = "Segoe UI";
         LyricsTextColor = "";
         LyricsAnimationMode = 0;
