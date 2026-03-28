@@ -76,6 +76,10 @@ public partial class MainWindow : MicaWindow
 
     internal static volatile bool ExplorerRestarting = false;
 
+    private LyricsWindow? _lyricsWindow;
+    private readonly LyricsService _lyricsService = new();
+    private string _lastLyricsKey = string.Empty;
+
     public MainWindow()
     {
         DataContext = SettingsManager.Current;
@@ -152,6 +156,10 @@ public partial class MainWindow : MicaWindow
         cts = new CancellationTokenSource();
 
         mediaManager.Start();
+
+        // Create the lyrics marquee window
+        _lyricsWindow = new LyricsWindow();
+        _lyricsWindow.Show();
 
         _hookProc = HookCallback;
         _hookId = SetHook(_hookProc);
@@ -454,6 +462,7 @@ public partial class MainWindow : MicaWindow
         if (!mediaManager.IsStarted || mediaManager.GetFocusedSession() == null)
         {
             taskbarWindow?.UpdateUi("-", "-", null, GlobalSystemMediaTransportControlsSessionPlaybackStatus.Closed);
+            _lyricsWindow?.ClearLyrics();
             return;
         }
         var focusedSession = mediaManager.GetFocusedSession();
@@ -465,6 +474,10 @@ public partial class MainWindow : MicaWindow
         var thumbnail = BitmapHelper.GetThumbnail(songInfo.Thumbnail);
         BitmapHelper.GetDominantColors(1);
         taskbarWindow?.UpdateUi(songInfo.Title, songInfo.Artist, thumbnail, playbackInfo.PlaybackStatus, playbackInfo.Controls);
+
+        bool isPaused = playbackInfo.PlaybackStatus != GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
+        _lyricsWindow?.SetPaused(isPaused);
+        UpdateLyrics(songInfo.Title, songInfo.Artist, focusedSession.ControlSession);
     }
 
     public void reportBug(object? sender, EventArgs e)
@@ -530,6 +543,10 @@ public partial class MainWindow : MicaWindow
         BitmapHelper.GetDominantColors(1);
         taskbarWindow?.UpdateUi(songInfo.Title, songInfo.Artist, thumbnail, playbackInfo?.PlaybackStatus, playbackInfo?.Controls);
 
+        bool isPaused = playbackInfo?.PlaybackStatus != GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
+        _lyricsWindow?.SetPaused(isPaused);
+        UpdateLyrics(songInfo.Title, songInfo.Artist, focusedSession.ControlSession);
+
         if (IsVisible)
         {
             UpdateUI(focusedSession);
@@ -577,6 +594,10 @@ public partial class MainWindow : MicaWindow
         var thumbnail = BitmapHelper.GetThumbnail(songInfo.Thumbnail);
         BitmapHelper.GetDominantColors(1);
         taskbarWindow?.UpdateUi(songInfo.Title, songInfo.Artist, thumbnail, playbackInfo.PlaybackStatus, playbackInfo.Controls);
+
+        bool isPaused = playbackInfo.PlaybackStatus != GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
+        _lyricsWindow?.SetPaused(isPaused);
+        UpdateLyrics(songInfo.Title, songInfo.Artist, mediaSession.ControlSession);
 
         pauseOtherMediaSessionsIfNeeded(mediaSession);
 
@@ -656,6 +677,7 @@ public partial class MainWindow : MicaWindow
         if (focusedSession == null)
         {
             taskbarWindow?.UpdateUi("-", "-", null, GlobalSystemMediaTransportControlsSessionPlaybackStatus.Closed);
+            _lyricsWindow?.ClearLyrics();
         }
         else
         {
@@ -667,6 +689,46 @@ public partial class MainWindow : MicaWindow
             var thumbnail = BitmapHelper.GetThumbnail(songInfo.Thumbnail);
             BitmapHelper.GetDominantColors(1);
             taskbarWindow?.UpdateUi(songInfo.Title, songInfo.Artist, thumbnail, playbackInfo.PlaybackStatus, playbackInfo.Controls);
+
+            bool isPaused = playbackInfo.PlaybackStatus != GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
+            _lyricsWindow?.SetPaused(isPaused);
+            UpdateLyrics(songInfo.Title, songInfo.Artist, focusedSession.ControlSession);
+        }
+    }
+
+    private async void UpdateLyrics(string title, string artist, GlobalSystemMediaTransportControlsSession controlSession)
+    {
+        if (_lyricsWindow == null || !SettingsManager.Current.LyricsMarqueeEnabled)
+        {
+            _lyricsWindow?.ClearLyrics();
+            return;
+        }
+
+        // Avoid redundant lookups for the same song
+        string key = $"{title}||{artist}".ToLowerInvariant();
+        if (key == _lastLyricsKey)
+            return;
+        _lastLyricsKey = key;
+
+        try
+        {
+            // Try synced lyrics first (for time-synchronized display)
+            var syncedLyrics = await _lyricsService.GetSyncedLyricsAsync(title, artist);
+            if (syncedLyrics != null && syncedLyrics.Count > 0)
+            {
+                _lyricsWindow.UpdateSyncedLyrics(syncedLyrics, controlSession);
+                return;
+            }
+
+            // Fall back to plain lyrics (scrolling marquee)
+            var plainLyrics = await _lyricsService.GetPlainLyricsAsync(title, artist);
+            _lyricsWindow.UpdatePlainLyrics(plainLyrics);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex, "Error updating lyrics");
+            _lastLyricsKey = string.Empty; // Allow retry on next update beat
+            _lyricsWindow.ClearLyrics();
         }
     }
 

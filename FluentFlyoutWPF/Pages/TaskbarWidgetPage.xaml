@@ -237,6 +237,83 @@
                     <ComboBoxItem Content="{DynamicResource PositionRight}" />
                 </ComboBox>
             </ui:CardControl>
+            
+            <ui:CardExpander Grid.Row="12" Icon="{ui:SymbolIcon TextQuote24}" ContentPadding="6" Margin="0,0,0,12">
+                <ui:CardExpander.Header>
+                    <StackPanel Orientation="Vertical">
+                        <TextBlock Text="Lyrics Settings" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
+                        <TextBlock Text="Customize how song lyrics are displayed on the taskbar" FontSize="12" Opacity="0.5" />
+                    </StackPanel>
+                </ui:CardExpander.Header>
+                <StackPanel>
+                    <ui:CardControl Margin="0,0,0,3">
+                        <ui:CardControl.Header>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="Enable Lyrics Marquee" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
+                                <TextBlock Text="Show time-synced or scrolling lyrics" FontSize="12" Opacity="0.5" />
+                            </StackPanel>
+                        </ui:CardControl.Header>
+                        <controls:ToggleSwitch IsChecked="{Binding LyricsMarqueeEnabled, Mode=TwoWay}" IsEnabled="{Binding IsPremiumUnlocked}" />
+                    </ui:CardControl>
+                    
+                    <ui:CardControl Margin="0,0,0,3">
+                        <ui:CardControl.Header>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="Font Size" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
+                                <TextBlock Text="Adjust the text size of the lyrics" FontSize="12" Opacity="0.5" />
+                            </StackPanel>
+                        </ui:CardControl.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <ui:TextBox Width="60" ClearButtonEnabled="False" Text="{Binding LyricsFontSize, Mode=TwoWay}" IsEnabled="{Binding IsPremiumUnlocked}" />
+                            <TextBlock Text="pt" FontSize="14" FontWeight="Regular" Margin="10,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </ui:CardControl>
+
+                    <ui:CardControl Margin="0,0,0,3">
+                        <ui:CardControl.Header>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="Text Color (HEX)" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
+                                <TextBlock Text="Leave empty to use Windows accent/theme colors" FontSize="12" Opacity="0.5" />
+                            </StackPanel>
+                        </ui:CardControl.Header>
+                        <ui:TextBox Width="120" ClearButtonEnabled="True" Text="{Binding LyricsTextColor, Mode=TwoWay}" PlaceholderText="#FFFFFF" IsEnabled="{Binding IsPremiumUnlocked}" />
+                    </ui:CardControl>
+
+                    <ui:CardControl Margin="0,0,0,3">
+                        <ui:CardControl.Header>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="Font Family" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
+                                <TextBlock Text="System font name (e.g., Segoe UI, Comic Sans MS)" FontSize="12" Opacity="0.5" />
+                            </StackPanel>
+                        </ui:CardControl.Header>
+                        <ui:TextBox Width="150" ClearButtonEnabled="False" Text="{Binding LyricsFontFamily, Mode=TwoWay}" IsEnabled="{Binding IsPremiumUnlocked}" />
+                    </ui:CardControl>
+
+                    <ui:CardControl Margin="0,0,0,3">
+                        <ui:CardControl.Header>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="Animation Style" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
+                                <TextBlock Text="How lyrics transition between lines" FontSize="12" Opacity="0.5" />
+                            </StackPanel>
+                        </ui:CardControl.Header>
+                        <ComboBox SelectedIndex="{Binding LyricsAnimationMode}" IsEnabled="{Binding IsPremiumUnlocked}">
+                            <ComboBoxItem Content="Fade" />
+                            <ComboBoxItem Content="Slide" />
+                        </ComboBox>
+                    </ui:CardControl>
+
+                    <ui:CardControl Margin="0,0,0,0">
+                        <ui:CardControl.Header>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="Hide When Paused" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
+                                <TextBlock Text="Instantly hide the lyrics display when music stops" FontSize="12" Opacity="0.5" />
+                            </StackPanel>
+                        </ui:CardControl.Header>
+                        <controls:ToggleSwitch IsChecked="{Binding LyricsHideWhenPaused, Mode=TwoWay}" IsEnabled="{Binding IsPremiumUnlocked}" />
+                    </ui:CardControl>
+                </StackPanel>
+            </ui:CardExpander>
+
             <ui:CardControl Grid.Row="14" Icon="{ui:SymbolIcon Wand24}" Margin="0,0,0,76">
                 <ui:CardControl.Header>
                     <StackPanel Orientation="Vertical">

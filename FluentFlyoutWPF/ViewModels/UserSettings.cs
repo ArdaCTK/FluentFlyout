@@ -354,6 +354,48 @@ public partial class UserSettings : ObservableObject
     public partial int TaskbarWidgetPosition { get; set; }
 
     /// <summary>
+    /// Enable lyrics marquee
+    /// </summary>
+    [ObservableProperty]
+    public partial bool LyricsMarqueeEnabled { get; set; }
+
+    /// <summary>
+    /// Scroll speed in pixels per frame (1-5). Default: 2.
+    /// </summary>
+    [ObservableProperty]
+    public partial int LyricsMarqueeSpeed { get; set; }
+
+    /// <summary>
+    /// Font size for the lyrics marquee. Default: 12.
+    /// </summary>
+    [ObservableProperty]
+    public partial int LyricsFontSize { get; set; }
+
+    /// <summary>
+    /// Font family for the lyrics. Default: Segoe UI.
+    /// </summary>
+    [ObservableProperty]
+    public partial string LyricsFontFamily { get; set; }
+
+    /// <summary>
+    /// Text color for the lyrics in HEX (e.g., #FFFFFF). Leave blank for default responsive coloring.
+    /// </summary>
+    [ObservableProperty]
+    public partial string LyricsTextColor { get; set; }
+
+    /// <summary>
+    /// Animation mode for line changes. 0 = Fade, 1 = Slide.
+    /// </summary>
+    [ObservableProperty]
+    public partial int LyricsAnimationMode { get; set; }
+
+    /// <summary>
+    /// Hide the lyrics immediately when the media is paused/stopped.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool LyricsHideWhenPaused { get; set; }
+
+    /// <summary>
     /// Determines whether padding should be applied to the taskbar widget for the native Windows Widgets button
     /// </summary>
     [ObservableProperty]
@@ -591,6 +633,13 @@ public partial class UserSettings : ObservableObject
         LastUpdateNotificationUnixSeconds = 0;
         ShowUpdateNotifications = true;
         LegacyTaskbarWidthEnabled = false;
+        LyricsMarqueeEnabled = true;
+        LyricsMarqueeSpeed = 2;
+        LyricsFontSize = 12;
+        LyricsFontFamily = "Segoe UI";
+        LyricsTextColor = "";
+        LyricsAnimationMode = 0;
+        LyricsHideWhenPaused = false;
     }
 
     /// <summary>
