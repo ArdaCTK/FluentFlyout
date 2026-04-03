@@ -39,11 +39,15 @@ public partial class LyricsWindow : Window
         {
             Interval = TimeSpan.FromMilliseconds(1500)
         };
-        _positionTimer.Tick += (s, e) => UpdatePosition();
+        // Use a named method so OnClosed can correctly unsubscribe the exact same delegate.
+        _positionTimer.Tick += OnPositionTimerTick;
         _positionTimer.Start();
 
         Show();
     }
+
+    /// <summary>Named tick handler stored to allow correct unsubscription in OnClosed.</summary>
+    private void OnPositionTimerTick(object? sender, EventArgs e) => UpdatePosition();
 
     protected override void OnSourceInitialized(EventArgs e)
     {
@@ -58,7 +62,7 @@ public partial class LyricsWindow : Window
         // Stop the timer before the window handle becomes invalid,
         // preventing spurious ticks after Close() is called.
         _positionTimer.Stop();
-        _positionTimer.Tick -= (s, ev) => UpdatePosition();
+        _positionTimer.Tick -= OnPositionTimerTick;
         base.OnClosed(e);
     }
 
@@ -244,30 +248,24 @@ public partial class LyricsWindow : Window
             int taskbarHeight = taskbarRect.Bottom - taskbarRect.Top;
             int taskbarWidth = taskbarRect.Right - taskbarRect.Left;
 
-            // Position the lyrics window on the right side, left of system tray
             int lyricsPhysicalWidth = (int)(_lyricsWidth * dpiScale);
             int lyricsLeft;
 
-            // Try to find the system tray to position left of it
             if (_trayHandle == IntPtr.Zero)
                 _trayHandle = FindWindowEx(taskbarHandle, IntPtr.Zero, "TrayNotifyWnd", null);
 
             if (_trayHandle != IntPtr.Zero)
             {
                 GetWindowRect(_trayHandle, out RECT trayRect);
-                // Position left of the tray, with a small gap
                 lyricsLeft = trayRect.Left - taskbarRect.Left - lyricsPhysicalWidth - 8;
             }
             else
             {
-                // Fallback: position near the right edge
                 lyricsLeft = taskbarWidth - lyricsPhysicalWidth - 250;
             }
 
-            // Ensure it doesn't go too far left (leave space for the media widget)
             lyricsLeft = Math.Max(lyricsLeft, taskbarWidth / 3);
 
-            // Convert to client coordinates
             POINT containerPos = new() { X = taskbarRect.Left, Y = taskbarRect.Top };
             ScreenToClient(taskbarHandle, ref containerPos);
 
@@ -279,7 +277,6 @@ public partial class LyricsWindow : Window
                 containerWidth, containerHeight,
                 SWP_NOZORDER | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS | SWP_SHOWWINDOW);
 
-            // Position the marquee widget within the canvas
             int widgetTop = (taskbarHeight - (int)(40 * dpiScale)) / 2;
 
             Canvas.SetLeft(MarqueeWidget, lyricsLeft / dpiScale);
@@ -287,7 +284,6 @@ public partial class LyricsWindow : Window
             MarqueeWidget.Width = lyricsPhysicalWidth / dpiScale;
             MarqueeWidget.Height = (int)(40 * dpiScale) / dpiScale;
 
-            // Set window region to only the marquee area
             Rect widgetRect = new Rect(
                 Canvas.GetLeft(MarqueeWidget) * dpiScale,
                 Canvas.GetTop(MarqueeWidget) * dpiScale,

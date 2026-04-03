@@ -5,6 +5,7 @@ using FluentFlyout.Classes.Settings;
 using FluentFlyoutWPF.Classes;
 using MicaWPF.Core.Enums;
 using MicaWPF.Core.Helpers;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -30,7 +31,7 @@ public partial class LyricsMarqueeControl : UserControl
     private double _textWidth;
     private double _controlWidth;
     private bool _needsScroll;
-    
+
     private bool _isTextAActive = true;
 
     private class RibbonItemData
@@ -41,28 +42,27 @@ public partial class LyricsMarqueeControl : UserControl
     private List<RibbonItemData>? _ribbonItems;
     private double _ribbonTotalWidth;
 
+    // Dirty flag: set whenever ribbon content or layout-affecting settings change.
+    // Prevents calling Measure() inside the 16ms scroll tick unnecessarily.
+    private bool _ribbonLayoutDirty = true;
+
+    // Stored handler reference so we can correctly unsubscribe on Unloaded.
+    private readonly PropertyChangedEventHandler _settingsChangedHandler;
+
     public bool HasLyrics => _hasContent;
 
     public LyricsMarqueeControl()
     {
         InitializeComponent();
         DataContext = SettingsManager.Current;
-        SettingsManager.Current.PropertyChanged += (s, e) =>
-        {
-            if (e.PropertyName == nameof(SettingsManager.Current.LyricsTextColor))
-            {
-                ApplyWindowsTheme();
-            }
-            else if (e.PropertyName == nameof(SettingsManager.Current.LyricsFontSize) ||
-                     e.PropertyName == nameof(SettingsManager.Current.LyricsFontFamily) ||
-                     e.PropertyName == nameof(SettingsManager.Current.LyricsContinuousScrollDirection))
-            {
-                if (_syncedLyrics != null && SettingsManager.Current.LyricsAnimationMode == 2)
-                {
-                    BuildRibbon();
-                }
-            }
-        };
+
+        _settingsChangedHandler = OnSettingsPropertyChanged;
+        SettingsManager.Current.PropertyChanged += _settingsChangedHandler;
+
+        // Unsubscribe when the control is unloaded to prevent handler accumulation
+        // if the control is created and destroyed multiple times.
+        Unloaded += (_, _) => SettingsManager.Current.PropertyChanged -= _settingsChangedHandler;
+
         ApplyWindowsTheme();
 
         _syncTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(100) };
@@ -72,6 +72,26 @@ public partial class LyricsMarqueeControl : UserControl
         _scrollTimer.Tick += ScrollTimer_Tick;
 
         SizeChanged += (s, e) => { _controlWidth = ActualWidth; };
+    }
+
+    private void OnSettingsPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SettingsManager.Current.LyricsTextColor))
+        {
+            ApplyWindowsTheme();
+        }
+        else if (e.PropertyName == nameof(SettingsManager.Current.LyricsFontSize) ||
+                 e.PropertyName == nameof(SettingsManager.Current.LyricsFontFamily) ||
+                 e.PropertyName == nameof(SettingsManager.Current.LyricsContinuousScrollDirection))
+        {
+            // Mark the ribbon layout as stale so EnsureRibbonLayout rebuilds on next tick.
+            _ribbonLayoutDirty = true;
+
+            if (_syncedLyrics != null && SettingsManager.Current.LyricsAnimationMode == 2)
+            {
+                BuildRibbon();
+            }
+        }
     }
 
     public void ApplyWindowsTheme()
@@ -104,15 +124,16 @@ public partial class LyricsMarqueeControl : UserControl
             }
         }
     }
-    
+
     private void BuildRibbon()
     {
         RibbonPanel.Children.Clear();
         _ribbonItems = new List<RibbonItemData>();
         _ribbonTotalWidth = 0;
+        _ribbonLayoutDirty = true;
 
         if (_syncedLyrics == null) return;
-        
+
         bool isRtl = SettingsManager.Current.LyricsContinuousScrollDirection == 1;
         double marginValue = 75.0;
         double cumulativeX = 0;
@@ -151,7 +172,7 @@ public partial class LyricsMarqueeControl : UserControl
                 child.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             }
             double width = child.ActualWidth > 0 ? child.ActualWidth : child.DesiredSize.Width;
-            
+
             tempItems.Add(new RibbonItemData
             {
                 Width = width,
@@ -170,7 +191,8 @@ public partial class LyricsMarqueeControl : UserControl
         }
 
         _ribbonTotalWidth = cumulativeX - marginValue;
-        
+        _ribbonLayoutDirty = false;
+
         if (SettingsManager.Current.LyricsAnimationMode == 2)
         {
             UpdateContinuousScroll(true);
@@ -185,6 +207,7 @@ public partial class LyricsMarqueeControl : UserControl
             _plainLyrics = null;
             _session = session;
             _currentLineIndex = -1;
+            _ribbonLayoutDirty = true;
 
             RibbonCanvas.Visibility = Visibility.Collapsed;
             SingleLineGrid.Visibility = Visibility.Collapsed;
@@ -236,13 +259,13 @@ public partial class LyricsMarqueeControl : UserControl
 
             _plainLyrics = lyrics.Replace("\r\n", "\n").Replace("\r", "\n").Replace("\n\n", " ★ ").Replace("\n", " ◆ ");
             string displayText = _plainLyrics + "          ★          " + _plainLyrics + "          ★          ";
-            
+
             TextBlock activeBlock = _isTextAActive ? MarqueeTextA : MarqueeTextB;
             activeBlock.Opacity = 0.85;
             activeBlock.Text = displayText;
-            
+
             HandleLineMeasurement(activeBlock);
-            
+
             TranslateTransform activeTrans = _isTextAActive ? MarqueeTranslateA : MarqueeTranslateB;
             activeTrans.BeginAnimation(TranslateTransform.XProperty, null);
             activeTrans.X = _controlWidth;
@@ -262,13 +285,13 @@ public partial class LyricsMarqueeControl : UserControl
                 _syncTimer.Stop();
                 _scrollTimer.Stop();
                 double op = SettingsManager.Current.LyricsHideWhenPaused ? 0.0 : 0.45;
-                
+
                 MarqueeTextA.BeginAnimation(OpacityProperty, null);
                 MarqueeTextB.BeginAnimation(OpacityProperty, null);
-                
+
                 MarqueeTextA.Opacity = _isTextAActive ? op : 0;
                 MarqueeTextB.Opacity = !_isTextAActive ? op : 0;
-                
+
                 if (SettingsManager.Current.LyricsAnimationMode == 2 && _syncedLyrics != null)
                 {
                     RibbonPanel.Opacity = 1.0;
@@ -290,10 +313,10 @@ public partial class LyricsMarqueeControl : UserControl
                 {
                     _scrollTimer.Start();
                 }
-                
+
                 MarqueeTextA.BeginAnimation(OpacityProperty, null);
                 MarqueeTextB.BeginAnimation(OpacityProperty, null);
-                
+
                 MarqueeTextA.Opacity = _isTextAActive ? 0.85 : 0;
                 MarqueeTextB.Opacity = !_isTextAActive ? 0.85 : 0;
                 RibbonPanel.Opacity = SettingsManager.Current.LyricsAnimationMode == 2 ? 1.0 : 0.85;
@@ -328,14 +351,16 @@ public partial class LyricsMarqueeControl : UserControl
         {
             var timeline = _session.GetTimelineProperties();
             if (timeline == null) return TimeSpan.Zero;
-            
+
             var playbackInfo = _session.GetPlaybackInfo();
             TimeSpan currentPosition = timeline.Position;
 
             if (playbackInfo != null && playbackInfo.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing)
             {
                 TimeSpan elapsedSinceUpdate = DateTimeOffset.Now - timeline.LastUpdatedTime;
-                if (elapsedSinceUpdate.TotalHours < 1) currentPosition += elapsedSinceUpdate;
+                // Guard against unreasonably large elapsed times (e.g. after system sleep).
+                if (elapsedSinceUpdate.TotalHours < 1)
+                    currentPosition += elapsedSinceUpdate;
             }
 
             return currentPosition.Add(TimeSpan.FromMilliseconds(100));
@@ -435,7 +460,7 @@ public partial class LyricsMarqueeControl : UserControl
             TranslateTransform activeTrans = _isTextAActive ? MarqueeTranslateA : MarqueeTranslateB;
             TranslateTransform inactiveTrans = _isTextAActive ? MarqueeTranslateB : MarqueeTranslateA;
 
-            if (mode == 2 && RibbonPanel.Children.Count > 0 && index.HasValue && _syncedLyrics != null) // Marquee Sync (Ribbon)
+            if (mode == 2 && RibbonPanel.Children.Count > 0 && index.HasValue && _syncedLyrics != null)
             {
                 SingleLineGrid.Visibility = Visibility.Collapsed;
                 RibbonCanvas.Visibility = Visibility.Visible;
@@ -443,20 +468,20 @@ public partial class LyricsMarqueeControl : UserControl
                 RibbonTranslate.BeginAnimation(TranslateTransform.XProperty, null);
                 return;
             }
-            else // Fade or Slide
+            else
             {
                 RibbonCanvas.Visibility = Visibility.Collapsed;
                 SingleLineGrid.Visibility = Visibility.Visible;
 
                 inactiveBlock.Text = newText;
                 HandleLineMeasurement(inactiveBlock);
-                
-                if (mode == 1) // Slide
+
+                if (mode == 1)
                 {
                     int dir = SettingsManager.Current.LyricsSlideDirection;
                     double outX = 0, inX = 0, outY = 0, inY = 0;
-                    
-                    if (dir == 0)      { outX = -_controlWidth - 50; inX = _controlWidth + 50; }
+
+                    if (dir == 0) { outX = -_controlWidth - 50; inX = _controlWidth + 50; }
                     else if (dir == 1) { outX = _controlWidth + 50; inX = -_controlWidth - 50; }
                     else if (dir == 2) { outY = -ActualHeight - 20; inY = ActualHeight + 20; }
                     else if (dir == 3) { outY = ActualHeight + 20; inY = -ActualHeight - 20; }
@@ -482,7 +507,7 @@ public partial class LyricsMarqueeControl : UserControl
                     else inactiveTrans.BeginAnimation(TranslateTransform.YProperty, slideInY);
                     inactiveBlock.BeginAnimation(OpacityProperty, fadeIn);
                 }
-                else // 0: Fade
+                else
                 {
                     var fadeOut = new DoubleAnimation { To = 0, Duration = TimeSpan.FromMilliseconds(150), EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
                     activeBlock.BeginAnimation(OpacityProperty, fadeOut);
@@ -490,7 +515,7 @@ public partial class LyricsMarqueeControl : UserControl
                     inactiveTrans.BeginAnimation(TranslateTransform.XProperty, null);
                     inactiveTrans.BeginAnimation(TranslateTransform.YProperty, null);
                     inactiveTrans.X = 0; inactiveTrans.Y = 0;
-                    
+
                     var fadeIn = new DoubleAnimation { To = targetOpacity, Duration = TimeSpan.FromMilliseconds(200), EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn } };
                     inactiveBlock.BeginAnimation(OpacityProperty, fadeIn);
                 }
@@ -508,23 +533,24 @@ public partial class LyricsMarqueeControl : UserControl
         }
     }
 
+    /// <summary>
+    /// Ensures ribbon layout data is valid before using it in the scroll tick.
+    /// Uses a dirty flag to avoid expensive Measure() calls every 16ms frame.
+    /// </summary>
     private void EnsureRibbonLayout()
     {
         if (_syncedLyrics == null || RibbonPanel.Children.Count == 0) return;
 
-        bool needsRebuild = _ribbonItems == null || _ribbonItems.Count != _syncedLyrics.Count;
-        
-        if (!needsRebuild && _ribbonItems!.Count > 0)
-        {
-            if (_ribbonItems[0].Width <= 0.1) needsRebuild = true;
-            else if (RibbonPanel.Children.Count > 0 && RibbonPanel.Children[0] is FrameworkElement fe && Math.Abs(fe.ActualWidth - _ribbonItems[0].Width) > 5)
-                needsRebuild = true;
-        }
+        bool needsRebuild = _ribbonLayoutDirty
+            || _ribbonItems == null
+            || _ribbonItems.Count != _syncedLyrics.Count;
+
+        // Guard: if widths are still zero after an earlier build, rebuild once.
+        if (!needsRebuild && _ribbonItems!.Count > 0 && _ribbonItems[0].Width <= 0.1)
+            needsRebuild = true;
 
         if (needsRebuild)
-        {
             RebuildLayoutCache();
-        }
     }
 
     private void RebuildLayoutCache()
@@ -541,7 +567,7 @@ public partial class LyricsMarqueeControl : UserControl
                 child.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             }
             double width = child.ActualWidth > 0 ? child.ActualWidth : child.DesiredSize.Width;
-            
+
             tempItems.Add(new RibbonItemData
             {
                 Width = width,
@@ -561,6 +587,7 @@ public partial class LyricsMarqueeControl : UserControl
         }
 
         _ribbonTotalWidth = cumulativeX - marginValue;
+        _ribbonLayoutDirty = false;
     }
 
     private void UpdateContinuousScroll(bool snapToCurrent = false)
@@ -570,7 +597,7 @@ public partial class LyricsMarqueeControl : UserControl
         if (_ribbonItems == null || _ribbonItems.Count == 0 || RibbonPanel.Children.Count == 0) return;
 
         TimeSpan pos = GetExtrapolatedPosition();
-        
+
         int idx = 0;
         for (int i = 0; i < _syncedLyrics.Count; i++)
         {
@@ -578,7 +605,7 @@ public partial class LyricsMarqueeControl : UserControl
         }
 
         int nextIdx = idx + 1 < _syncedLyrics.Count ? idx + 1 : idx;
-        
+
         TimeSpan lineStart = _syncedLyrics[idx].Timestamp;
         TimeSpan nextLineStart = _syncedLyrics[nextIdx].Timestamp;
         TimeSpan dur = nextLineStart - lineStart;
@@ -591,24 +618,20 @@ public partial class LyricsMarqueeControl : UserControl
         double nextX = idx == nextIdx ? currX : ((canvasWidth / 2.0) - nextCenter);
 
         double progress = 0;
-        
+
         if (dur.TotalMilliseconds > 0 && idx != nextIdx && !snapToCurrent && !_isPaused)
         {
             double elapsedMs = (pos - lineStart).TotalMilliseconds;
             double totalMs = dur.TotalMilliseconds;
-            
-            // Pure continuous linear scroll across the entire duration
+
             progress = elapsedMs / totalMs;
         }
-        
-        progress = Math.Clamp(progress, 0, 1);
-        
-        // Linear easing for pure continuous flow
-        double easedProgress = progress;
 
-        RibbonTranslate.X = currX + (nextX - currX) * easedProgress;
-        
-        UpdateRibbonOpacities(idx, nextIdx, easedProgress);
+        progress = Math.Clamp(progress, 0, 1);
+
+        RibbonTranslate.X = currX + (nextX - currX) * progress;
+
+        UpdateRibbonOpacities(idx, nextIdx, progress);
     }
 
     private void UpdateRibbonOpacities(int currentIdx, int nextIdx, double progress)
@@ -628,7 +651,7 @@ public partial class LyricsMarqueeControl : UserControl
                     double targetOpacity = inactiveOpacity;
                     if (i == currentIdx) targetOpacity = inactiveOpacity + (activeOpacity - inactiveOpacity) * (1 - progress);
                     else if (i == nextIdx) targetOpacity = inactiveOpacity + (activeOpacity - inactiveOpacity) * progress;
-                    
+
                     if (Math.Abs(element.Opacity - targetOpacity) > 0.01)
                     {
                         element.Opacity = targetOpacity;

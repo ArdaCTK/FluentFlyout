@@ -21,7 +21,7 @@ public sealed class LyricLine
 /// Fetches and parses song lyrics from the LRCLIB API (https://lrclib.net).
 /// Free, open-source, no API key required.
 /// </summary>
-public sealed class LyricsService
+public sealed class LyricsService : IDisposable
 {
     private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
 
@@ -40,6 +40,11 @@ public sealed class LyricsService
     private string? _cachedPlainLyrics;
     private bool _cacheIsValid;
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
+
+    // Cancellation support: replaced atomically on each new fetch request
+    private CancellationTokenSource _fetchCts = new();
+
+    private bool _disposed;
 
     static LyricsService()
     {
@@ -66,6 +71,14 @@ public sealed class LyricsService
 
     private async Task FetchIfNeeded(string trackName, string artistName, int durationSeconds)
     {
+        // Cancel any in-flight HTTP request for a previous track before acquiring the lock.
+        // This saves bandwidth when the user skips tracks rapidly.
+        var oldCts = Interlocked.Exchange(ref _fetchCts, new CancellationTokenSource());
+        oldCts.Cancel();
+        oldCts.Dispose();
+
+        var token = _fetchCts.Token;
+
         await _cacheLock.WaitAsync();
         try
         {
@@ -90,7 +103,7 @@ public sealed class LyricsService
                 if (durationSeconds > 0)
                     url += $"&duration={durationSeconds}";
 
-                using var response = await _httpClient.GetAsync(url);
+                using var response = await _httpClient.GetAsync(url, token);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -99,7 +112,7 @@ public sealed class LyricsService
                     return;
                 }
 
-                string json = await response.Content.ReadAsStringAsync();
+                string json = await response.Content.ReadAsStringAsync(token);
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
 
@@ -121,8 +134,15 @@ public sealed class LyricsService
 
                 _cacheIsValid = true;
             }
+            catch (OperationCanceledException ex) when (ex.CancellationToken == token)
+            {
+                // A newer track was requested while this fetch was in-flight — expected, not an error.
+                Logger.Debug($"Lyrics fetch cancelled for '{trackName}' by '{artistName}' (newer track requested)");
+                // Leave _cacheIsValid = false so the next caller (new track) proceeds with its own fetch.
+            }
             catch (TaskCanceledException)
             {
+                // HttpClient.Timeout fired — not our explicit cancellation.
                 Logger.Warn($"LRCLIB request timed out for '{trackName}' by '{artistName}'");
                 throw;
             }
@@ -178,6 +198,9 @@ public sealed class LyricsService
 
     public void ClearCache()
     {
+        // Cancel any in-flight request before clearing
+        _fetchCts.Cancel();
+
         _cacheLock.Wait();
         try
         {
@@ -190,5 +213,14 @@ public sealed class LyricsService
         {
             _cacheLock.Release();
         }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _fetchCts.Cancel();
+        _fetchCts.Dispose();
+        _cacheLock.Dispose();
     }
 }

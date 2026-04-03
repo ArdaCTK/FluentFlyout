@@ -76,9 +76,20 @@ public partial class MainWindow : MicaWindow
 
     internal static volatile bool ExplorerRestarting = false;
 
+    // LyricsWindow is created on demand (only when LyricsDisplayMode == 0 and a track is playing).
+    // This avoids embedding a WS_CHILD window into the taskbar when the feature is disabled.
     private LyricsWindow? _lyricsWindow;
+
     private readonly LyricsService _lyricsService = new();
+
+    // _lastLyricsKey: key of the most recently initiated fetch (cleared on error to allow retry).
     private string _lastLyricsKey = string.Empty;
+
+    // _failedLyricsKey: key of the track whose last fetch failed.
+    // Used to distinguish "same track retry" from "new track" when the cooldown is active,
+    // preventing a different track from being blocked by a previous track's error cooldown.
+    private string _failedLyricsKey = string.Empty;
+
     private readonly object _lyricsKeyLock = new();
     private DateTime _lyricsRetryNotBeforeUtc = DateTime.MinValue;
     private static readonly TimeSpan LyricsRetryCooldown = TimeSpan.FromSeconds(30);
@@ -160,9 +171,9 @@ public partial class MainWindow : MicaWindow
 
         mediaManager.Start();
 
-        // Create the lyrics marquee window
-        _lyricsWindow = new LyricsWindow();
-        _lyricsWindow.Show();
+        // NOTE: LyricsWindow is NOT created here. It is created on demand in UpdateLyrics()
+        // the first time a track needs to display lyrics in separate-window mode.
+        // This prevents embedding a WS_CHILD window into the taskbar when the feature is off.
 
         _hookProc = HookCallback;
         _hookId = SetHook(_hookProc);
@@ -486,7 +497,18 @@ public partial class MainWindow : MicaWindow
 
     public void DispatchLyricsDisplayModeChanged()
     {
-        Dispatcher.BeginInvoke(() => {
+        Dispatcher.BeginInvoke(() =>
+        {
+            // Clear both display targets immediately when the mode changes.
+            // Also reset the key so the next UpdateTaskbar() call triggers a fresh apply
+            // to the newly active display target.
+            _lyricsWindow?.ClearLyrics();
+            taskbarWindow?.ClearLyrics();
+            lock (_lyricsKeyLock)
+            {
+                _lastLyricsKey = string.Empty;
+                _failedLyricsKey = string.Empty;
+            }
             UpdateTaskbar();
         });
     }
@@ -718,35 +740,60 @@ public partial class MainWindow : MicaWindow
             lock (_lyricsKeyLock)
             {
                 _lastLyricsKey = string.Empty;
+                _failedLyricsKey = string.Empty;
             }
             _lyricsWindow?.ClearLyrics();
             taskbarWindow?.ClearLyrics();
             return;
         }
 
-        if (DateTime.UtcNow < _lyricsRetryNotBeforeUtc)
-            return;
+        string key = $"{title}||{artist}".ToLowerInvariant();
+
+        // Key check MUST come before the cooldown check.
+        // A new track should always bypass the retry cooldown that was set by a previous track's error.
+        lock (_lyricsKeyLock)
+        {
+            bool isSameTrack = key == _lastLyricsKey;
+            bool isRecentlyFailedTrack = key == _failedLyricsKey;
+
+            if (isSameTrack)
+            {
+                // Same track as the last initiated fetch — lyrics already applied, nothing to do.
+                return;
+            }
+
+            if (isRecentlyFailedTrack && DateTime.UtcNow < _lyricsRetryNotBeforeUtc)
+            {
+                // This specific track just failed and the cooldown has not expired yet.
+                // Block the retry to avoid hammering the API.
+                return;
+            }
+
+            // New track, or the failed track's cooldown has expired — proceed.
+            _lyricsRetryNotBeforeUtc = DateTime.MinValue;
+            _failedLyricsKey = string.Empty;
+            _lastLyricsKey = key;
+        }
 
         bool isInline = SettingsManager.Current.LyricsDisplayMode == 1;
 
-        if (isInline)
-            _lyricsWindow?.ClearLyrics();
-        else
-            taskbarWindow?.ClearLyrics();
-
-        // Avoid redundant lookups for the same song
-        string key = $"{title}||{artist}".ToLowerInvariant();
-        lock (_lyricsKeyLock)
+        if (!isInline)
         {
-            if (key == _lastLyricsKey)
-                return;
-            _lastLyricsKey = key;
+            // Create the overlay window on first use, rather than at startup.
+            if (_lyricsWindow == null)
+            {
+                _lyricsWindow = new LyricsWindow();
+                // LyricsWindow.Show() is called inside the LyricsWindow constructor.
+            }
+            taskbarWindow?.ClearLyrics();
+        }
+        else
+        {
+            _lyricsWindow?.ClearLyrics();
         }
 
         try
         {
-            _lyricsRetryNotBeforeUtc = DateTime.MinValue;
-
             // Try synced lyrics first (for time-synchronized display)
             var syncedLyrics = await _lyricsService.GetSyncedLyricsAsync(title, artist);
             if (syncedLyrics != null && syncedLyrics.Count > 0)
@@ -766,7 +813,8 @@ public partial class MainWindow : MicaWindow
             Logger.Error(ex, "Error updating lyrics");
             lock (_lyricsKeyLock)
             {
-                _lastLyricsKey = string.Empty; // Allow retry after cooldown
+                _failedLyricsKey = key;   // remember which track failed
+                _lastLyricsKey = string.Empty; // allow retry once the cooldown expires
             }
             _lyricsRetryNotBeforeUtc = DateTime.UtcNow.Add(LyricsRetryCooldown);
             _lyricsWindow?.ClearLyrics();
@@ -1046,7 +1094,7 @@ public partial class MainWindow : MicaWindow
                 if (BitmapHelper.SavedDominantColors.Count > 0)
                 {
                     SolidColorBrush brush = BitmapHelper.SavedDominantColors.First();
-                    ControlPlayPause.Background = brush; 
+                    ControlPlayPause.Background = brush;
                 }
 
                 // acrylic effect setting
@@ -1208,14 +1256,6 @@ public partial class MainWindow : MicaWindow
         if (mediaManager.GetFocusedSession() == null)
             return;
 
-        //var controlsInfo = mediaManager.GetFocusedSession().ControlSession.GetPlaybackInfo().Controls;
-
-        //if (controlsInfo.IsPauseEnabled == true)
-        //{
-        //    await mediaManager.GetFocusedSession().ControlSession.TryPauseAsync();
-        //}
-        //else if (controlsInfo.IsPlayEnabled == true)
-        //    await mediaManager.GetFocusedSession().ControlSession.TryPlayAsync();
         if (mediaManager.GetFocusedSession().ControlSession.GetPlaybackInfo().Controls.IsPauseEnabled)
             SymbolPlayPause.Dispatcher.Invoke(() => SymbolPlayPause.Symbol = Wpf.Ui.Controls.SymbolRegular.Pause16);
         else
@@ -1381,6 +1421,8 @@ public partial class MainWindow : MicaWindow
             _positionTimer?.Dispose();
             cts?.Cancel();
             cts?.Dispose();
+
+            _lyricsService.Dispose();
 
             TaskbarVisualizerControl.DisposeVisualizer();
 
@@ -1551,7 +1593,7 @@ public partial class MainWindow : MicaWindow
             return 0;
         }
         else if (msg == WM_SETTINGCHANGE) // Windows theme or system settings changed
-        {  
+        {
             try
             {
                 ThemeManager.UpdateTaskbarWidget();
@@ -1658,9 +1700,6 @@ public partial class MainWindow : MicaWindow
         if (SettingsManager.Current.NIconLeftClick == 0)
         {
             openSettings(sender, e);
-            //Wpf.Ui.Appearance.ApplicationThemeManager.Apply(ApplicationTheme.Light, WindowBackdropType.Mica); // to change the theme
-            //ThemeService themeService = new ThemeService();
-            //themeService.ChangeTheme(MicaWPF.Core.Enums.WindowsTheme.Light);
         }
         else if (SettingsManager.Current.NIconLeftClick == 1) ShowMediaFlyout();
     }
