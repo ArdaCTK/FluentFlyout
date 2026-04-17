@@ -1,37 +1,44 @@
 ## Summary
 
-<!-- What does this PR do? Keep it concise but clear. -->
+<!-- What does this PR do? Keep it concise and concrete. -->
 
 ## Motivation
 
-<!-- Why is this change needed? Link issues if applicable. -->
+<!-- Why is this change needed? Reference issue(s) when applicable. -->
 
 Closes #issue-number
 
 ## Type of Change
 
-<!-- Please check the type of change your PR introduces: -->
+<!-- Mark all that apply. -->
 
-- [ ] Feature
 - [ ] Bug fix
+- [ ] Feature
 - [ ] Refactor (no functional changes)
-- [ ] Style (formatting, naming)
-- [ ] Other
+- [ ] Docs / localization
+- [ ] CI / build
 
 ## What Changed
 
-<!-- Bullet points of key changes made in this PR. -->
+<!-- List the most important changes. -->
 
 - 
 - 
 
-## Additional Information
+## Testing
 
-<!-- Any other information, such as screenshots -->
+<!-- Describe how you validated this change (manual/automated). -->
+
+- 
+
+## Screenshots (if UI changed)
+
+<!-- Optional -->
 
 ## Checklist
-- [ ] Code changes are manually tested and working.
-- [ ] Formatting and naming are consistent with the project.
-- [ ] Self-review of changes is done.
-<!-- AI usage -->
-- [ ] AI tools were used (if yes, I reviewed and fully understand the changes myself).
+
+- [ ] I linked related issue(s) when applicable.
+- [ ] I tested the changes and they work as expected.
+- [ ] I reviewed my own changes for clarity and regressions.
+- [ ] I followed existing project style and naming conventions.
+- [ ] If AI tools were used, I reviewed the output and fully understand the final code.

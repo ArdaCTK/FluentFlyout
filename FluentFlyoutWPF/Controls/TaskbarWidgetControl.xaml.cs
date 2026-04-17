@@ -323,6 +323,7 @@ public partial class TaskbarWidgetControl : UserControl
 
     public void ClearLyrics()
     {
+         _isLyricsPaused = false;
          InlineLyricsControl.Clear();
          UpdateInlineVisibility();
     }
@@ -336,6 +337,7 @@ public partial class TaskbarWidgetControl : UserControl
             {
                 if (SettingsManager.Current.TaskbarWidgetHideCompletely)
                 {
+                    ClearLyrics();
                     Visibility = Visibility.Collapsed;
                     return;
                 }

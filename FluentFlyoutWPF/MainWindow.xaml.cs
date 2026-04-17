@@ -93,6 +93,7 @@ public partial class MainWindow : MicaWindow
     private readonly object _lyricsKeyLock = new();
     private DateTime _lyricsRetryNotBeforeUtc = DateTime.MinValue;
     private static readonly TimeSpan LyricsRetryCooldown = TimeSpan.FromSeconds(30);
+    private int _lyricsRequestVersion;
 
     public MainWindow()
     {
@@ -476,7 +477,7 @@ public partial class MainWindow : MicaWindow
         if (!mediaManager.IsStarted || mediaManager.GetFocusedSession() == null)
         {
             taskbarWindow?.UpdateUi("-", "-", null, GlobalSystemMediaTransportControlsSessionPlaybackStatus.Closed);
-            _lyricsWindow?.ClearLyrics();
+            ResetLyricsStateAndClearDisplays();
             return;
         }
         var focusedSession = mediaManager.GetFocusedSession();
@@ -502,13 +503,7 @@ public partial class MainWindow : MicaWindow
             // Clear both display targets immediately when the mode changes.
             // Also reset the key so the next UpdateTaskbar() call triggers a fresh apply
             // to the newly active display target.
-            _lyricsWindow?.ClearLyrics();
-            taskbarWindow?.ClearLyrics();
-            lock (_lyricsKeyLock)
-            {
-                _lastLyricsKey = string.Empty;
-                _failedLyricsKey = string.Empty;
-            }
+            ResetLyricsStateAndClearDisplays();
             UpdateTaskbar();
         });
     }
@@ -565,6 +560,7 @@ public partial class MainWindow : MicaWindow
         if (focusedSession == null)
         {
             taskbarWindow?.UpdateUi("-", "-", null, GlobalSystemMediaTransportControlsSessionPlaybackStatus.Closed);
+            ResetLyricsStateAndClearDisplays();
             return;
         }
 
@@ -603,6 +599,7 @@ public partial class MainWindow : MicaWindow
         if (mediaManager.GetFocusedSession() == null)
         {
             taskbarWindow?.UpdateUi("-", "-", null, GlobalSystemMediaTransportControlsSessionPlaybackStatus.Closed);
+            ResetLyricsStateAndClearDisplays();
             return;
         }
 
@@ -712,8 +709,7 @@ public partial class MainWindow : MicaWindow
         if (focusedSession == null)
         {
             taskbarWindow?.UpdateUi("-", "-", null, GlobalSystemMediaTransportControlsSessionPlaybackStatus.Closed);
-            _lyricsWindow?.ClearLyrics();
-            taskbarWindow?.ClearLyrics();
+            ResetLyricsStateAndClearDisplays();
         }
         else
         {
@@ -737,13 +733,7 @@ public partial class MainWindow : MicaWindow
     {
         if (!SettingsManager.Current.LyricsMarqueeEnabled)
         {
-            lock (_lyricsKeyLock)
-            {
-                _lastLyricsKey = string.Empty;
-                _failedLyricsKey = string.Empty;
-            }
-            _lyricsWindow?.ClearLyrics();
-            taskbarWindow?.ClearLyrics();
+            ResetLyricsStateAndClearDisplays();
             return;
         }
 
@@ -774,6 +764,7 @@ public partial class MainWindow : MicaWindow
             _failedLyricsKey = string.Empty;
             _lastLyricsKey = key;
         }
+        int requestVersion = Interlocked.Increment(ref _lyricsRequestVersion);
 
         bool isInline = SettingsManager.Current.LyricsDisplayMode == 1;
 
@@ -796,6 +787,9 @@ public partial class MainWindow : MicaWindow
         {
             // Try synced lyrics first (for time-synchronized display)
             var syncedLyrics = await _lyricsService.GetSyncedLyricsAsync(title, artist);
+            if (!IsLyricsRequestCurrent(key, requestVersion))
+                return;
+
             if (syncedLyrics != null && syncedLyrics.Count > 0)
             {
                 if (isInline) taskbarWindow?.UpdateSyncedLyrics(syncedLyrics, controlSession);
@@ -805,12 +799,25 @@ public partial class MainWindow : MicaWindow
 
             // Fall back to plain lyrics (scrolling marquee)
             var plainLyrics = await _lyricsService.GetPlainLyricsAsync(title, artist);
+            if (!IsLyricsRequestCurrent(key, requestVersion))
+                return;
+
+            if (string.IsNullOrWhiteSpace(plainLyrics))
+            {
+                _lyricsWindow?.ClearLyrics();
+                taskbarWindow?.ClearLyrics();
+                return;
+            }
+
             if (isInline) taskbarWindow?.UpdatePlainLyrics(plainLyrics);
             else _lyricsWindow?.UpdatePlainLyrics(plainLyrics);
         }
         catch (Exception ex)
         {
             Logger.Error(ex, "Error updating lyrics");
+            if (!IsLyricsRequestCurrent(key, requestVersion))
+                return;
+
             lock (_lyricsKeyLock)
             {
                 _failedLyricsKey = key;   // remember which track failed
@@ -820,6 +827,30 @@ public partial class MainWindow : MicaWindow
             _lyricsWindow?.ClearLyrics();
             taskbarWindow?.ClearLyrics();
         }
+    }
+
+    private bool IsLyricsRequestCurrent(string key, int requestVersion)
+    {
+        if (requestVersion != Volatile.Read(ref _lyricsRequestVersion))
+            return false;
+
+        lock (_lyricsKeyLock)
+        {
+            return key == _lastLyricsKey;
+        }
+    }
+
+    private void ResetLyricsStateAndClearDisplays()
+    {
+        lock (_lyricsKeyLock)
+        {
+            _lastLyricsKey = string.Empty;
+            _failedLyricsKey = string.Empty;
+            _lyricsRetryNotBeforeUtc = DateTime.MinValue;
+        }
+        Interlocked.Increment(ref _lyricsRequestVersion);
+        _lyricsWindow?.ClearLyrics();
+        taskbarWindow?.ClearLyrics();
     }
 
     private static IntPtr SetHook(LowLevelKeyboardProc proc) // set the keyboard hook

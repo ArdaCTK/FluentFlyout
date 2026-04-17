@@ -71,21 +71,26 @@ public sealed class LyricsService : IDisposable
 
     private async Task FetchIfNeeded(string trackName, string artistName, int durationSeconds)
     {
-        // Cancel any in-flight HTTP request for a previous track before acquiring the lock.
-        // This saves bandwidth when the user skips tracks rapidly.
-        var oldCts = Interlocked.Exchange(ref _fetchCts, new CancellationTokenSource());
-        oldCts.Cancel();
-        oldCts.Dispose();
+        if (string.IsNullOrWhiteSpace(trackName) || trackName == "-")
+            return;
+
+        string key = $"{trackName}||{artistName}".ToLowerInvariant();
+
+        // Cancel only when requesting a different track key.
+        // This avoids cross-cancel behavior between the sequential
+        // GetSyncedLyricsAsync/GetPlainLyricsAsync calls for the same track.
+        if (!string.IsNullOrEmpty(_cachedKey) && !string.Equals(_cachedKey, key, StringComparison.Ordinal))
+        {
+            var oldCts = Interlocked.Exchange(ref _fetchCts, new CancellationTokenSource());
+            oldCts.Cancel();
+            oldCts.Dispose();
+        }
 
         var token = _fetchCts.Token;
 
         await _cacheLock.WaitAsync();
         try
         {
-            if (string.IsNullOrWhiteSpace(trackName) || trackName == "-")
-                return;
-
-            string key = $"{trackName}||{artistName}".ToLowerInvariant();
             if (key == _cachedKey && _cacheIsValid)
                 return;
 
