@@ -189,7 +189,7 @@
                 </StackPanel>
             </ui:CardExpander>
 
-            <ui:CardControl Grid.Row="7" Icon="{ui:SymbolIcon ColorBackground24}" Margin="0,0,0,3">
+            <ui:CardControl Grid.Row="9" Icon="{ui:SymbolIcon ColorBackground24}" Margin="0,0,0,3">
                 <ui:CardControl.Header>
                     <StackPanel Orientation="Vertical">
                         <TextBlock Text="{DynamicResource TaskbarWidgetBackgroundBlurTitle}" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
@@ -198,7 +198,7 @@
                 </ui:CardControl.Header>
                 <controls:ToggleSwitch IsChecked="{Binding TaskbarWidgetBackgroundBlur, Mode=TwoWay}" IsEnabled="{Binding IsPremiumUnlocked}" />
             </ui:CardControl>
-            <ui:CardControl Grid.Row="8" Icon="{ui:SymbolIcon EyeOff24}" Margin="0,0,0,3">
+            <ui:CardControl Grid.Row="10" Icon="{ui:SymbolIcon EyeOff24}" Margin="0,0,0,3">
                 <ui:CardControl.Header>
                     <StackPanel Orientation="Vertical">
                         <TextBlock Text="{DynamicResource TaskbarWidgetHideCompletelyTitle}" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
@@ -207,7 +207,7 @@
                 </ui:CardControl.Header>
                 <controls:ToggleSwitch IsChecked="{Binding TaskbarWidgetHideCompletely, Mode=TwoWay}" IsEnabled="{Binding IsPremiumUnlocked}" />
             </ui:CardControl>
-            <ui:CardControl Grid.Row="9" Icon="{ui:SymbolIcon EyeLines24}" Margin="0,0,0,12">
+            <ui:CardControl Grid.Row="11" Icon="{ui:SymbolIcon EyeLines24}" Margin="0,0,0,12">
                 <ui:CardControl.Header>
                     <StackPanel Orientation="Vertical">
                         <TextBlock Text="{DynamicResource TaskbarWidgetAutoHideTitle}" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
@@ -216,7 +216,7 @@
                 </ui:CardControl.Header>
                 <controls:ToggleSwitch IsChecked="{Binding TaskbarWidgetAutoHide, Mode=TwoWay}" IsEnabled="{Binding IsPremiumUnlocked}" />
             </ui:CardControl>
-            <ui:CardControl Grid.Row="10" Icon="{ui:SymbolIcon VideoPlayPause24}" Margin="0,0,0,3">
+            <ui:CardControl Grid.Row="12" Icon="{ui:SymbolIcon VideoPlayPause24}" Margin="0,0,0,3">
                 <ui:CardControl.Header>
                     <StackPanel Orientation="Vertical">
                         <TextBlock Text="{DynamicResource TaskbarWidgetControlsTitle}" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
@@ -225,7 +225,7 @@
                 </ui:CardControl.Header>
                 <controls:ToggleSwitch IsChecked="{Binding TaskbarWidgetControlsEnabled, Mode=TwoWay}" IsEnabled="{Binding IsPremiumUnlocked}" />
             </ui:CardControl>
-            <ui:CardControl Grid.Row="11" Icon="{ui:SymbolIcon ArrowMove24}" Margin="0,0,0,12">
+            <ui:CardControl Grid.Row="13" Icon="{ui:SymbolIcon ArrowMove24}" Margin="0,0,0,12">
                 <ui:CardControl.Header>
                     <StackPanel Orientation="Vertical">
                         <TextBlock Text="{DynamicResource TaskbarWidgetControlsPositionTitle}" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
@@ -237,7 +237,126 @@
                     <ComboBoxItem Content="{DynamicResource PositionRight}" />
                 </ComboBox>
             </ui:CardControl>
-            <ui:CardControl Grid.Row="12" Icon="{ui:SymbolIcon Wand24}" Margin="0,0,0,3">
+            
+            <ui:CardExpander Grid.Row="12" Icon="{ui:SymbolIcon TextQuote24}" ContentPadding="6" Margin="0,0,0,12">
+                <ui:CardExpander.Header>
+                    <StackPanel Orientation="Vertical">
+                        <TextBlock Text="{DynamicResource LyricsSettingsTitle}" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
+                        <TextBlock Text="{DynamicResource LyricsSettingsDescription}" FontSize="12" Opacity="0.5" />
+                    </StackPanel>
+                </ui:CardExpander.Header>
+                <StackPanel>
+                    <ui:CardControl Margin="0,0,0,3">
+                        <ui:CardControl.Header>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="{DynamicResource LyricsEnableMarqueeTitle}" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
+                                <TextBlock Text="{DynamicResource LyricsEnableMarqueeDescription}" FontSize="12" Opacity="0.5" />
+                            </StackPanel>
+                        </ui:CardControl.Header>
+                        <controls:ToggleSwitch IsChecked="{Binding LyricsMarqueeEnabled, Mode=TwoWay}" IsEnabled="{Binding IsPremiumUnlocked}" />
+                    </ui:CardControl>
+                    
+                    <ui:CardControl Margin="0,0,0,3">
+                        <ui:CardControl.Header>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="{DynamicResource LyricsFontSizeTitle}" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
+                                <TextBlock Text="{DynamicResource LyricsFontSizeDescription}" FontSize="12" Opacity="0.5" />
+                            </StackPanel>
+                        </ui:CardControl.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <ui:TextBox Width="60" ClearButtonEnabled="False" Text="{Binding LyricsFontSize, Mode=TwoWay}" IsEnabled="{Binding IsPremiumUnlocked}" />
+                            <TextBlock Text="{DynamicResource LyricsFontSizeUnit}" FontSize="14" FontWeight="Regular" Margin="10,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </ui:CardControl>
+
+                    <ui:CardControl Margin="0,0,0,3">
+                        <ui:CardControl.Header>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="{DynamicResource LyricsDisplayModeTitle}" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
+                                <TextBlock Text="{DynamicResource LyricsDisplayModeDescription}" FontSize="12" Opacity="0.5" />
+                            </StackPanel>
+                        </ui:CardControl.Header>
+                        <ComboBox SelectedIndex="{Binding LyricsDisplayMode}" IsEnabled="{Binding IsPremiumUnlocked}">
+                            <ComboBoxItem Content="{DynamicResource LyricsDisplayModeSeparateWindow}" />
+                            <ComboBoxItem Content="{DynamicResource LyricsDisplayModeInlineTaskbar}" />
+                        </ComboBox>
+                    </ui:CardControl>
+
+                    <ui:CardControl Margin="0,0,0,3">
+                        <ui:CardControl.Header>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="{DynamicResource LyricsTextColorTitle}" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
+                                <TextBlock Text="{DynamicResource LyricsTextColorDescription}" FontSize="12" Opacity="0.5" />
+                            </StackPanel>
+                        </ui:CardControl.Header>
+                        <ui:TextBox Width="120" ClearButtonEnabled="True" Text="{Binding LyricsTextColor, Mode=TwoWay}" PlaceholderText="#FFFFFF" IsEnabled="{Binding IsPremiumUnlocked}" />
+                    </ui:CardControl>
+
+                    <ui:CardControl Margin="0,0,0,3">
+                        <ui:CardControl.Header>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="{DynamicResource LyricsFontFamilyTitle}" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
+                                <TextBlock Text="{DynamicResource LyricsFontFamilyDescription}" FontSize="12" Opacity="0.5" />
+                            </StackPanel>
+                        </ui:CardControl.Header>
+                        <ui:TextBox Width="150" ClearButtonEnabled="False" Text="{Binding LyricsFontFamily, Mode=TwoWay}" IsEnabled="{Binding IsPremiumUnlocked}" />
+                    </ui:CardControl>
+
+                    <ui:CardControl Margin="0,0,0,3">
+                        <ui:CardControl.Header>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="{DynamicResource LyricsAnimationStyleTitle}" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
+                                <TextBlock Text="{DynamicResource LyricsAnimationStyleDescription}" FontSize="12" Opacity="0.5" />
+                            </StackPanel>
+                        </ui:CardControl.Header>
+                        <ComboBox SelectedIndex="{Binding LyricsAnimationMode}" IsEnabled="{Binding IsPremiumUnlocked}" Width="150">
+                            <ComboBoxItem Content="{DynamicResource LyricsAnimationFade}" />
+                            <ComboBoxItem Content="{DynamicResource LyricsAnimationSlide}" />
+                            <ComboBoxItem Content="{DynamicResource LyricsAnimationContinuousScroll}" />
+                        </ComboBox>
+                    </ui:CardControl>
+
+                    <ui:CardControl Margin="0,0,0,3">
+                        <ui:CardControl.Header>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="{DynamicResource LyricsSlideDirectionTitle}" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
+                                <TextBlock Text="{DynamicResource LyricsSlideDirectionDescription}" FontSize="12" Opacity="0.5" />
+                            </StackPanel>
+                        </ui:CardControl.Header>
+                        <ComboBox SelectedIndex="{Binding LyricsSlideDirection}" IsEnabled="{Binding IsPremiumUnlocked}" Width="150">
+                            <ComboBoxItem Content="{DynamicResource LyricsSlideDirectionLeft}" />
+                            <ComboBoxItem Content="{DynamicResource LyricsSlideDirectionRight}" />
+                            <ComboBoxItem Content="{DynamicResource LyricsSlideDirectionUp}" />
+                            <ComboBoxItem Content="{DynamicResource LyricsSlideDirectionDown}" />
+                        </ComboBox>
+                    </ui:CardControl>
+
+                    <ui:CardControl Margin="0,0,0,3">
+                        <ui:CardControl.Header>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="{DynamicResource LyricsContinuousScrollDirectionTitle}" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
+                                <TextBlock Text="{DynamicResource LyricsContinuousScrollDirectionDescription}" FontSize="12" Opacity="0.5" />
+                            </StackPanel>
+                        </ui:CardControl.Header>
+                        <ComboBox SelectedIndex="{Binding LyricsContinuousScrollDirection}" IsEnabled="{Binding IsPremiumUnlocked}" Width="150">
+                            <ComboBoxItem Content="{DynamicResource LyricsContinuousScrollRightToLeft}" />
+                            <ComboBoxItem Content="{DynamicResource LyricsContinuousScrollLeftToRight}" />
+                        </ComboBox>
+                    </ui:CardControl>
+
+                    <ui:CardControl Margin="0,0,0,0">
+                        <ui:CardControl.Header>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="{DynamicResource LyricsHideWhenPausedTitle}" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
+                                <TextBlock Text="{DynamicResource LyricsHideWhenPausedDescription}" FontSize="12" Opacity="0.5" />
+                            </StackPanel>
+                        </ui:CardControl.Header>
+                        <controls:ToggleSwitch IsChecked="{Binding LyricsHideWhenPaused, Mode=TwoWay}" IsEnabled="{Binding IsPremiumUnlocked}" />
+                    </ui:CardControl>
+                </StackPanel>
+            </ui:CardExpander>
+
+            <ui:CardControl Grid.Row="14" Icon="{ui:SymbolIcon Wand24}" Margin="0,0,0,76">
                 <ui:CardControl.Header>
                     <StackPanel Orientation="Vertical">
                         <TextBlock Text="{DynamicResource TaskbarWidgetAnimatedTitle}" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
@@ -245,15 +364,6 @@
                     </StackPanel>
                 </ui:CardControl.Header>
                 <controls:ToggleSwitch IsChecked="{Binding TaskbarWidgetAnimated, Mode=TwoWay}" IsEnabled="{Binding IsPremiumUnlocked}" />
-            </ui:CardControl>
-            <ui:CardControl Grid.Row="13" Icon="{ui:SymbolIcon Pause24}" Margin="0,0,0,76">
-                <ui:CardControl.Header>
-                    <StackPanel Orientation="Vertical">
-                        <TextBlock Text="{DynamicResource TaskbarWidgetShowPauseOverlayTitle}" FontSize="14" FontWeight="Regular" VerticalAlignment="Center" />
-                        <TextBlock Text="{DynamicResource TaskbarWidgetShowPauseOverlayDescription}" FontSize="12" Opacity="0.5" />
-                    </StackPanel>
-                </ui:CardControl.Header>
-                <controls:ToggleSwitch IsChecked="{Binding TaskbarWidgetShowPauseOverlay, Mode=TwoWay}" IsEnabled="{Binding IsPremiumUnlocked}" />
             </ui:CardControl>
         </StackPanel>
     </StackPanel>

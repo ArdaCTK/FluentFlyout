@@ -354,6 +354,74 @@ public partial class UserSettings : ObservableObject
     public partial int TaskbarWidgetPosition { get; set; }
 
     /// <summary>
+    /// Enable lyrics marquee
+    /// </summary>
+    [ObservableProperty]
+    public partial bool LyricsMarqueeEnabled { get; set; }
+
+    /// <summary>
+    /// Scroll speed in pixels per frame for non-synced lyrics (1-5). Default: 2.
+    /// </summary>
+    [ObservableProperty]
+    public partial int LyricsMarqueeSpeed { get; set; }
+
+    /// <summary>
+    /// Font size for the lyrics marquee. Default: 12.
+    /// </summary>
+    [ObservableProperty]
+    public partial double LyricsFontSize { get; set; }
+
+    /// <summary>
+    /// Font family for the lyrics. Default: Segoe UI.
+    /// </summary>
+    [ObservableProperty]
+    public partial string LyricsFontFamily { get; set; }
+
+    /// <summary>
+    /// Text color for the lyrics in HEX (e.g., #FFFFFF). Leave blank for default responsive coloring.
+    /// </summary>
+    [ObservableProperty]
+    public partial string LyricsTextColor { get; set; }
+
+    /// <summary>
+    /// Animation mode for line changes. 0 = Fade, 1 = Slide, 2 = Marquee Sync.
+    /// </summary>
+    [ObservableProperty]
+    public partial int LyricsAnimationMode { get; set; }
+
+    /// <summary>
+    /// Slide direction when AnimationMode is set to Slide. 0 = Left, 1 = Right, 2 = Up, 3 = Down.
+    /// </summary>
+    [ObservableProperty]
+    public partial int LyricsSlideDirection { get; set; }
+
+    /// <summary>
+    /// Scroll direction when AnimationMode is Continuous Scroll. 0 = Right to Left, 1 = Left to Right.
+    /// </summary>
+    [ObservableProperty]
+    public partial int LyricsContinuousScrollDirection { get; set; }
+
+    /// <summary>
+    /// Display mode for the lyrics. 0 = Separate Window, 1 = Inline Taskbar Widget.
+    /// </summary>
+    [ObservableProperty]
+    public partial int LyricsDisplayMode { get; set; }
+
+    partial void OnLyricsDisplayModeChanged(int value)
+    {
+        if (System.Windows.Application.Current?.MainWindow is FluentFlyoutWPF.MainWindow main)
+        {
+            main.DispatchLyricsDisplayModeChanged();
+        }
+    }
+
+    /// <summary>
+    /// Hide the lyrics immediately when the media is paused/stopped.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool LyricsHideWhenPaused { get; set; }
+
+    /// <summary>
     /// Determines whether padding should be applied to the taskbar widget for the native Windows Widgets button
     /// </summary>
     [ObservableProperty]
@@ -401,12 +469,6 @@ public partial class UserSettings : ObservableObject
     /// </summary>
     [ObservableProperty]
     public partial bool TaskbarWidgetHideCompletely { get; set; }
-
-    /// <summary>
-    /// Gets or sets a value indicating whether the pause icon overlay should be completely hidden from view.
-    /// </summary>
-    [ObservableProperty]
-    public partial bool TaskbarWidgetShowPauseOverlay { get; set; }
 
     /// <summary>
     /// Whether taskbar widget controls (pause, previous, next) are enabled.
@@ -581,7 +643,6 @@ public partial class UserSettings : ObservableObject
         TaskbarWidgetManualPadding = 0;
         TaskbarWidgetBackgroundBlur = false;
         TaskbarWidgetHideCompletely = false;
-        TaskbarWidgetShowPauseOverlay = true;
         TaskbarWidgetControlsEnabled = false;
         TaskbarWidgetControlsPosition = 1;
         TaskbarWidgetAnimated = true;
@@ -598,6 +659,16 @@ public partial class UserSettings : ObservableObject
         LastUpdateNotificationUnixSeconds = 0;
         ShowUpdateNotifications = true;
         LegacyTaskbarWidthEnabled = false;
+        LyricsMarqueeEnabled = false;
+        LyricsMarqueeSpeed = 2;
+        LyricsFontSize = 12.0;
+        LyricsFontFamily = "Segoe UI";
+        LyricsTextColor = "";
+        LyricsAnimationMode = 0;
+        LyricsSlideDirection = 0;
+        LyricsContinuousScrollDirection = 0;
+        LyricsDisplayMode = 0;
+        LyricsHideWhenPaused = false;
     }
 
     /// <summary>
@@ -677,12 +748,6 @@ public partial class UserSettings : ObservableObject
     }
 
     partial void OnTaskbarWidgetHideCompletelyChanged(bool oldValue, bool newValue)
-    {
-        if (oldValue == newValue || _initializing) return;
-        UpdateTaskbar();
-    }
-
-    partial void OnTaskbarWidgetShowPauseOverlayChanged(bool oldValue, bool newValue)
     {
         if (oldValue == newValue || _initializing) return;
         UpdateTaskbar();
